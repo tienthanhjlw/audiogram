@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs ls -la)",
+      "Bash(which whisper-cli 2>/dev/null || which whisper-cpp 2>/dev/null || echo \"not in PATH\" *)",
+      "Bash(cargo build *)",
+      "Bash(npm run *)",
+      "Bash(echo \"App started in background \\(PID: $!\\)\")",
+      "Bash(kill %1)",
+      "Bash(pkill -f \"tauri dev\")",
+      "Bash(/opt/homebrew/bin/whisper-cli --version)",
+      "Read(//tmp/**)",
+      "Bash(brew list *)",
+      "Bash(cmake --version)",
+      "Bash(brew install *)",
+      "Bash(cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_EXAMPLES=ON -DGGML_METAL=ON -DGGML_BLAS=OFF -DGGML_OPENMP=OFF)",
+      "Bash(cmake --build build --config Release -j8 --target whisper-cli)",
+      "Bash(otool -L /tmp/whisper-build/build/bin/whisper-cli)",
+      "Bash(/tmp/whisper-build/build/bin/whisper-cli -m /Users/thanh/joy/mine/audiogram/src-tauri/models/ggml-base.bin -f /tmp/audiogram_whisper/test.wav --output-json -of /tmp/test_static -t 4)",
+      "Bash(cp /tmp/whisper-build/build/bin/whisper-cli /Users/thanh/joy/mine/audiogram/src-tauri/binaries/macos/whisper-cpp)",
+      "Bash(chmod +x /Users/thanh/joy/mine/audiogram/src-tauri/binaries/macos/whisper-cpp)",
+      "Bash(cp /tmp/whisper-build/build/bin/whisper-cli /Users/thanh/joy/mine/audiogram/src-tauri/binaries/macos/whisper-cpp-aarch64-apple-darwin)",
+      "Bash(chmod +x /Users/thanh/joy/mine/audiogram/src-tauri/binaries/macos/whisper-cpp-aarch64-apple-darwin)",
+      "Bash(chmod +w /Users/thanh/joy/mine/audiogram/src-tauri/binaries/macos/whisper-cpp /Users/thanh/joy/mine/audiogram/src-tauri/binaries/macos/whisper-cpp-aarch64-apple-darwin)",
+      "Bash(chmod +x /Users/thanh/joy/mine/audiogram/src-tauri/binaries/macos/whisper-cpp /Users/thanh/joy/mine/audiogram/src-tauri/binaries/macos/whisper-cpp-aarch64-apple-darwin)",
+      "Bash(env -i PATH=/usr/bin:/bin HOME=/Users/thanh /Users/thanh/joy/mine/audiogram/src-tauri/binaries/macos/whisper-cpp -m /Users/thanh/joy/mine/audiogram/src-tauri/models/ggml-base.bin -f /tmp/audiogram_whisper/test.wav --output-json -of /tmp/test2 -t 4)",
+      "Bash(npx tsc *)"
+    ]
+  }
+}

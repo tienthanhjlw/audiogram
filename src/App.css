@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #6C4FF6;
+  --color-primary-light: #EDE9FF;
+  --color-bg: #F8F9FA;
+  --color-surface: #FFFFFF;
+  --color-text-1: #111827;
+  --color-text-2: #6B7280;
+  --color-border: #E5E7EB;
+  --color-success: #22C55E;
+  --color-danger: #EF4444;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: #F8F9FA;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  color: #111827;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #E5E7EB; border-radius: 3px; }
+
+.drop-active {
+  border-color: #6C4FF6 !important;
+  background: #F3F0FF !important;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fadeUp 0.22s ease forwards; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner { animation: spin 0.9s linear infinite; }

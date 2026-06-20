@@ -1,0 +1,26 @@
+FFmpeg Licensing Notice
+-----------------------
+
+FFmpeg is licensed under the GNU General Public License (GPL). Depending on
+the specific configuration and included codecs, it may be under GPL v2 or GPL v3.
+
+This application bundles the FFmpeg executable as an external binary solely
+for the purpose of media processing. You can obtain the source code and learn
+more about FFmpeg licensing at:
+
+  https://ffmpeg.org/
+  https://ffmpeg.org/legal.html
+  https://ffmpeg.org/download.html
+
+If you redistribute this application with FFmpeg, you must comply with the
+terms of the GPL. The copyright for FFmpeg is held by its respective
+contributors. See the FFmpeg project for the complete and up-to-date license
+information, including a list of authors and contributors.
+
+Source Code Offer
+-----------------
+As required by the GPL, the source code for FFmpeg can be obtained from the
+official FFmpeg project site above. If you received a binary build bundled
+with this application and are unable to retrieve the source, contact us for
+assistance in obtaining it from an available mirror.
+
