@@ -1,67 +1,37 @@
-import { useState, useCallback } from 'react'
-import { AppState, Step } from './types'
+import { useAppStore } from './store'
 import Sidebar from './components/Sidebar'
 import StepUpload from './components/StepUpload'
-import StepCustomize from './components/StepCustomize'
+import StepLayout from './components/StepLayout'
 import StepTranscript from './components/StepTranscript'
 import StepExport from './components/StepExport'
 
-const STEPS: Step[] = ['upload', 'customize', 'transcript', 'export']
-
-const STEP_META: Record<Step, { label: string; num: number }> = {
-  upload:     { label: 'Upload',     num: 1 },
-  customize:  { label: 'Customise',  num: 2 },
+const STEP_META = {
+  upload:     { label: 'Import',     num: 1 },
+  layout:     { label: 'Layout',     num: 2 },
   transcript: { label: 'Transcript', num: 3 },
   export:     { label: 'Export',     num: 4 },
-}
+} as const
 
-const DEFAULT_STATE: AppState = {
-  step: 'upload',
-  audioPath: '',
-  audioName: '',
-  title: '',
-  canvasSize: '1:1',
-  waveStyle: 'bar',
-  waveColor: '#6C4FF6',
-  bgColor: '#0F0A1E',
-  fps: 30,
-  logs: [],
-  isRendering: false,
-  lastOutput: '',
-  // Whisper
-  segments: [],
-  srtPath: '',
-  isTranscribing: false,
-  showSubtitles: true,
-  peaks: [],
-  fontSize: 100,
-  fontName: 'Arial',
-  karaokeEnabled: false,
-  karaokeColor: '#FFD60A',
-}
+const STEP_ORDER = ['upload', 'layout', 'transcript', 'export'] as const
 
 export default function App() {
-  const [state, setState] = useState<AppState>(DEFAULT_STATE)
+  const step           = useAppStore(s => s.step)
+  const audioPath      = useAppStore(s => s.audioPath)
+  const isTranscribing = useAppStore(s => s.isTranscribing)
+  const karaokeEnabled = useAppStore(s => s.karaokeEnabled)
+  const segments       = useAppStore(s => s.segments)
+  const goTo           = useAppStore(s => s.goTo)
 
-  const onChange = useCallback((patch: Partial<AppState>) => {
-    setState(s => ({ ...s, ...patch }))
-  }, [])
-
-  const goTo = (step: Step) => setState(s => ({ ...s, step }))
-  const next = () => {
-    const idx = STEPS.indexOf(state.step)
-    if (idx < STEPS.length - 1) goTo(STEPS[idx + 1])
-  }
-  const back = () => {
-    const idx = STEPS.indexOf(state.step)
-    if (idx > 0) goTo(STEPS[idx - 1])
-  }
-
-  const currentNum = STEP_META[state.step].num
+  const currentNum = STEP_META[step].num
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#F8F9FA' }}>
-      <Sidebar step={state.step} onNav={goTo} />
+      {isTranscribing && (
+        <div className="loading-bar-track">
+          <div className="loading-bar-fill" />
+        </div>
+      )}
+      <Sidebar step={step} audioReady={!!audioPath} onNav={goTo} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {/* Top bar */}
@@ -74,10 +44,10 @@ export default function App() {
           <div>
             <div style={{ fontWeight: 700, fontSize: 16, color: '#111827' }}>Create Audiogram</div>
             <div style={{ fontSize: 11, color: '#9CA3AF' }}>
-              Step {currentNum} of 3 · {STEP_META[state.step].label}
-              {state.segments.length > 0 && (
+              Step {currentNum} of 4 · {STEP_META[step].label}
+              {segments.length > 0 && (
                 <span style={{ marginLeft: 8, color: '#6C4FF6' }}>
-                  · {state.segments.length} segments{state.karaokeEnabled ? ' · karaoke' : ''}
+                  · {segments.length} segments{karaokeEnabled ? ' · karaoke' : ''}
                 </span>
               )}
             </div>
@@ -85,24 +55,21 @@ export default function App() {
 
           <div style={{ flex: 1 }} />
 
-          {/* Step pills */}
+          {/* Step progress pills */}
           <div style={{ display: 'flex', gap: 6 }}>
-            {STEPS.map((s, i) => {
-              const num = i + 1
-              const done = num < currentNum
-              const active = s === state.step
+            {STEP_ORDER.map((s, i) => {
+              const num    = i + 1
+              const done   = num < currentNum
+              const active = s === step
               return (
-                <button
+                <div
                   key={s}
-                  onClick={() => state.audioPath && goTo(s)}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 6,
-                    padding: '5px 12px', borderRadius: 20, border: 'none',
-                    cursor: state.audioPath ? 'pointer' : 'default',
+                    padding: '5px 12px', borderRadius: 20,
                     background: active ? '#6C4FF6' : done ? '#EDE9FF' : '#F3F4F6',
                     color: active ? '#fff' : done ? '#6C4FF6' : '#9CA3AF',
                     fontSize: 12, fontWeight: active ? 600 : 500,
-                    fontFamily: 'inherit', transition: 'all 0.15s',
                   }}
                 >
                   <span style={{
@@ -115,7 +82,7 @@ export default function App() {
                     {done ? '✓' : num}
                   </span>
                   {STEP_META[s].label}
-                </button>
+                </div>
               )
             })}
           </div>
@@ -123,18 +90,10 @@ export default function App() {
 
         {/* Content area */}
         <div style={{ flex: 1, overflow: 'auto', padding: 20 }}>
-          {state.step === 'upload' && (
-            <StepUpload state={state} onChange={onChange} onNext={next} />
-          )}
-          {state.step === 'customize' && (
-            <StepCustomize state={state} onChange={onChange} onBack={back} onNext={next} />
-          )}
-          {state.step === 'transcript' && (
-            <StepTranscript state={state} onChange={onChange} onBack={back} onNext={next} />
-          )}
-          {state.step === 'export' && (
-            <StepExport state={state} onChange={onChange} onBack={back} />
-          )}
+          {step === 'upload'     && <StepUpload />}
+          {step === 'layout'     && <StepLayout />}
+          {step === 'transcript' && <StepTranscript />}
+          {step === 'export'     && <StepExport />}
         </div>
       </div>
     </div>

@@ -1,87 +1,133 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { save } from '@tauri-apps/plugin-dialog'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
-import { AppState, CANVAS_SIZES } from '../types'
+import { CANVAS_SIZES } from '../types'
 import WaveformCanvas from './WaveformCanvas'
+import { useAppStore } from '../store'
 
-interface Props {
-  state: AppState
-  onChange: (patch: Partial<AppState>) => void
-  onBack: () => void
-}
+export default function StepExport() {
+  const audioPath      = useAppStore(s => s.audioPath)
+  const audioName      = useAppStore(s => s.audioName)
+  const title          = useAppStore(s => s.title)
+  const waveStyle      = useAppStore(s => s.waveStyle)
+  const waveColor      = useAppStore(s => s.waveColor)
+  const bgColor        = useAppStore(s => s.bgColor)
+  const canvasSize     = useAppStore(s => s.canvasSize)
+  const layoutTemplate = useAppStore(s => s.layoutTemplate)
+  const coverImagePath = useAppStore(s => s.coverImagePath)
+  const segments       = useAppStore(s => s.segments)
+  const peaks          = useAppStore(s => s.peaks)
+  const fontSize       = useAppStore(s => s.fontSize)
+  const fontName       = useAppStore(s => s.fontName)
+  const karaokeEnabled = useAppStore(s => s.karaokeEnabled)
+  const karaokeColor   = useAppStore(s => s.karaokeColor)
+  const subtitleColor  = useAppStore(s => s.subtitleColor)
+  const subtitleYPct   = useAppStore(s => s.subtitleYPct)
+  const showSubtitles  = useAppStore(s => s.showSubtitles)
+  const srtPath        = useAppStore(s => s.srtPath)
+  const zones          = useAppStore(s => s.zones)
+  const fps            = useAppStore(s => s.fps)
+  const isRendering    = useAppStore(s => s.isRendering)
+  const logs           = useAppStore(s => s.logs)
+  const lastOutput     = useAppStore(s => s.lastOutput)
+  const back           = useAppStore(s => s.back)
 
-export default function StepExport({ state, onChange, onBack }: Props) {
-  const logRef = useRef<HTMLDivElement>(null)
-  const ratio  = CANVAS_SIZES[state.canvasSize].w / CANVAS_SIZES[state.canvasSize].h
-  const unsubRef = useRef<(() => void) | undefined>(undefined)
+  const logRef    = useRef<HTMLDivElement>(null)
+  const unsubRef  = useRef<(() => void) | undefined>(undefined)
+  const [progress, setProgress] = useState(0)
 
+  const { w, h } = CANVAS_SIZES[canvasSize]
+  const ratio = w / h
+
+  // Fix stale closure: use store.setState with updater fn so the listener always
+  // sees current state instead of the value captured at mount time.
   useEffect(() => {
+    const unsubs: (() => void)[] = []
     listen<string>('log', e => {
-      onChange({ logs: [...state.logs, e.payload] })
-    }).then(f => { unsubRef.current = f })
+      useAppStore.setState(s => ({ logs: [...s.logs, e.payload] }))
+    }).then(f => unsubs.push(f))
+    listen<number>('render_progress', e => {
+      setProgress(e.payload)
+    }).then(f => unsubs.push(f))
+    unsubRef.current = () => unsubs.forEach(f => f())
     return () => unsubRef.current?.()
   }, [])
 
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight
-  }, [state.logs])
+  }, [logs])
 
   const render = async () => {
     const outPath = await save({
-      defaultPath: `${state.title || 'audiogram'}.mp4`,
+      defaultPath: `${title || 'audiogram'}.mp4`,
       filters: [{ name: 'Video', extensions: ['mp4'] }],
     })
     if (!outPath) return
 
-    const { w, h } = CANVAS_SIZES[state.canvasSize]
-
-    // Build captions path: ASS (karaoke) or SRT (plain)
     let captionsPath: string | null = null
-    if (state.showSubtitles && state.segments.length > 0) {
-      if (state.karaokeEnabled) {
-        captionsPath = await invoke<string>('write_ass', {
-          segments: state.segments,
-          highlightColor: state.karaokeColor,
-        })
-      } else if (state.srtPath) {
-        captionsPath = state.srtPath
-      }
+    if (showSubtitles && segments.length > 0) {
+      captionsPath = await invoke<string>('write_ass', {
+        segments,
+        params: {
+          highlightColor: karaokeColor,
+          videoWidth: w,
+          videoHeight: h,
+          fontSizePct: fontSize,
+          layoutTemplate,
+          karaokeEnabled,
+          fontName,
+          subtitleYPct: subtitleYPct ?? undefined,
+          subtitleColor,
+        },
+      })
     }
 
-    onChange({ isRendering: true, logs: ['🎬 Starting render…', captionsPath ? `💬 ${state.karaokeEnabled ? 'Karaoke' : 'Subtitles'}: ${captionsPath}` : '(no subtitles)'] })
+    setProgress(0)
+    useAppStore.setState({
+      isRendering: true,
+      logs: [
+        'Starting render…',
+        captionsPath
+          ? `Subtitles${karaokeEnabled ? ' (karaoke)' : ''}: ${captionsPath}`
+          : '(no subtitles)',
+      ],
+    })
+
     try {
       const res = await invoke<string>('render_audiogram', {
         params: {
-          audio_path: state.audioPath,
-          peaks: state.peaks,
-          bg_color: state.bgColor,
+          audio_path: audioPath,
+          peaks,
+          bg_color: bgColor,
           captions_path: captionsPath,
           width: w,
           height: h,
-          fps: state.fps,
-          wave_color: state.waveColor,
-          wave_style: state.waveStyle,
-          intro_title: state.title || null,
+          fps,
+          wave_color: waveColor,
+          wave_style: waveStyle,
+          intro_title: title || null,
           intro_duration: 3,
-          font_size: state.fontSize,
-          font_name: state.fontName,
+          font_size: fontSize,
+          font_name: fontName,
+          layout_template: layoutTemplate,
           output_path: outPath,
         },
       })
-      onChange({ lastOutput: res, isRendering: false, logs: [...state.logs, `✅ Done: ${res}`] })
+      setProgress(100)
+      useAppStore.setState(s => ({ lastOutput: res, isRendering: false, logs: [...s.logs, `Done: ${res}`] }))
     } catch (e: any) {
-      onChange({ logs: [...state.logs, `❌ ${e?.message ?? String(e)}`], isRendering: false })
+      useAppStore.setState(s => ({ logs: [...s.logs, `Error: ${e?.message ?? String(e)}`], isRendering: false }))
     }
   }
 
   const openOutput = () => {
-    if (!state.lastOutput) return
-    const dir = state.lastOutput.replace(/\\/g, '/').replace(/\/[^/]*$/, '')
+    if (!lastOutput) return
+    const dir = lastOutput.replace(/\\/g, '/').replace(/\/[^/]*$/, '')
     invoke('open_folder', { path: dir })
   }
 
-  const hasSubtitles = state.showSubtitles && state.srtPath && state.segments.length > 0
+  const hasSubtitles = showSubtitles && srtPath && segments.length > 0
 
   return (
     <div className="fade-up" style={{ display: 'flex', gap: 20, height: '100%' }}>
@@ -97,12 +143,12 @@ export default function StepExport({ state, onChange, onBack }: Props) {
           <div style={{ fontWeight: 700, fontSize: 15, color: '#111827', marginBottom: 14 }}>Export</div>
 
           {[
-            { label: 'File',       value: state.audioName },
-            { label: 'Title',      value: state.title || '—' },
-            { label: 'Resolution', value: `${CANVAS_SIZES[state.canvasSize].w}×${CANVAS_SIZES[state.canvasSize].h}` },
-            { label: 'Ratio',      value: state.canvasSize },
-            { label: 'FPS',        value: `${state.fps} fps` },
-            { label: 'Wave',       value: state.waveStyle },
+            { label: 'File',       value: audioName },
+            { label: 'Title',      value: title || '—' },
+            { label: 'Resolution', value: `${w}×${h}` },
+            { label: 'Format',     value: canvasSize },
+            { label: 'FPS',        value: `${fps} fps` },
+            { label: 'Wave',       value: waveStyle },
           ].map(({ label, value }) => (
             <div key={label} style={{
               display: 'flex', justifyContent: 'space-between', padding: '6px 0',
@@ -119,9 +165,9 @@ export default function StepExport({ state, onChange, onBack }: Props) {
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', fontSize: 13 }}>
             <span style={{ color: '#6B7280' }}>Wave / BG</span>
             <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
-              <div style={{ width: 16, height: 16, borderRadius: 4, background: state.waveColor, border: '1px solid rgba(0,0,0,0.1)' }} />
+              <div style={{ width: 16, height: 16, borderRadius: 4, background: waveColor, border: '1px solid rgba(0,0,0,0.1)' }} />
               <span style={{ color: '#D1D5DB', fontSize: 10 }}>/</span>
-              <div style={{ width: 16, height: 16, borderRadius: 4, background: state.bgColor, border: '1px solid rgba(0,0,0,0.1)' }} />
+              <div style={{ width: 16, height: 16, borderRadius: 4, background: bgColor, border: '1px solid rgba(0,0,0,0.1)' }} />
             </div>
           </div>
 
@@ -139,43 +185,62 @@ export default function StepExport({ state, onChange, onBack }: Props) {
               </div>
               {hasSubtitles && (
                 <div style={{ color: '#7C3AED', fontSize: 11 }}>
-                  {state.segments.length} segments from Whisper
+                  {segments.length} segments from Whisper
                 </div>
               )}
-              {!hasSubtitles && state.segments.length > 0 && (
-                <div style={{ color: '#9CA3AF', fontSize: 11 }}>
-                  Transcribed but disabled
-                </div>
+              {!hasSubtitles && segments.length > 0 && (
+                <div style={{ color: '#9CA3AF', fontSize: 11 }}>Transcribed but disabled</div>
               )}
             </div>
           </div>
         </div>
 
-        <button onClick={onBack} style={{ background: '#F3F4F6', color: '#374151', border: 'none', borderRadius: 10, padding: '11px 0', fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
-          ← Back
-        </button>
+        <button onClick={back} style={{
+          background: '#F3F4F6', color: '#374151', border: 'none',
+          borderRadius: 10, padding: '11px 0', fontSize: 13, fontWeight: 500,
+          cursor: 'pointer', fontFamily: 'inherit',
+        }}>← Back</button>
+
+        {/* Progress bar */}
+        {isRendering && (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, fontSize: 11, color: '#6B7280' }}>
+              <span>Rendering…</span>
+              <span style={{ fontWeight: 600, color: '#6C4FF6' }}>{Math.round(progress)}%</span>
+            </div>
+            <div style={{ height: 6, background: '#E5E7EB', borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{
+                height: '100%',
+                width: `${progress}%`,
+                background: 'linear-gradient(90deg, #6C4FF6, #EC4FC4)',
+                borderRadius: 3,
+                transition: 'width 0.4s ease',
+              }} />
+            </div>
+          </div>
+        )}
 
         <button
           onClick={render}
-          disabled={state.isRendering}
+          disabled={isRendering}
           style={{
-            background: state.isRendering ? '#A78BFA' : '#6C4FF6', color: '#fff',
+            background: isRendering ? '#A78BFA' : '#6C4FF6', color: '#fff',
             border: 'none', borderRadius: 10, padding: '13px 0',
-            fontSize: 14, fontWeight: 700, cursor: state.isRendering ? 'default' : 'pointer',
+            fontSize: 14, fontWeight: 700, cursor: isRendering ? 'default' : 'pointer',
             fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             transition: 'background 0.15s',
           }}
         >
-          {state.isRendering ? <><Spinner /> Rendering…</> : '⬇  Export MP4'}
+          {isRendering ? <><Spinner /> Rendering…</> : 'Export MP4'}
         </button>
 
-        {state.lastOutput && (
+        {lastOutput && (
           <button onClick={openOutput} style={{
             background: '#ECFDF5', color: '#059669', border: '1.5px solid #6EE7B7',
             borderRadius: 10, padding: '11px 0', fontSize: 13, fontWeight: 600,
             cursor: 'pointer', fontFamily: 'inherit',
           }}>
-            ✓ Open Output Folder
+            Open Output Folder
           </button>
         )}
       </div>
@@ -190,24 +255,28 @@ export default function StepExport({ state, onChange, onBack }: Props) {
         }}>
           <div style={{
             aspectRatio: String(ratio),
-            maxWidth: ratio >= 1 ? '82%' : undefined,
-            maxHeight: ratio < 1 ? '88%' : undefined,
+            width: ratio >= 1 ? '82%' : undefined,
             height: ratio < 1 ? '88%' : undefined,
             borderRadius: 12, overflow: 'hidden',
             boxShadow: '0 16px 56px rgba(0,0,0,0.55)',
           }}>
             <WaveformCanvas
-              audioPath={state.audioPath}
-              color={state.waveColor}
-              bgColor={state.bgColor}
-              waveStyle={state.waveStyle}
-              title={state.title}
+              audioPath={audioPath}
+              color={waveColor}
+              bgColor={bgColor}
+              waveStyle={waveStyle}
+              title={title}
               canvasRatio={ratio}
-              segments={hasSubtitles ? state.segments : []}
-              fontSize={state.fontSize}
-              fontName={state.fontName}
-              karaokeEnabled={state.karaokeEnabled && !!hasSubtitles}
-              karaokeColor={state.karaokeColor}
+              segments={hasSubtitles ? segments : []}
+              fontSize={fontSize}
+              fontName={fontName}
+              karaokeEnabled={karaokeEnabled && !!hasSubtitles}
+              karaokeColor={karaokeColor}
+              layoutTemplate={layoutTemplate}
+              coverImagePath={coverImagePath}
+              subtitleColor={subtitleColor}
+              subtitleYPct={subtitleYPct}
+              zones={zones}
             />
           </div>
         </div>
@@ -225,10 +294,10 @@ export default function StepExport({ state, onChange, onBack }: Props) {
             height: 'calc(100% - 22px)', overflowY: 'auto',
             fontSize: 11, fontFamily: 'monospace', color: '#94A3B8', lineHeight: 1.7,
           }}>
-            {state.logs.length === 0
+            {logs.length === 0
               ? <span style={{ color: '#334155' }}>Ready — click Export MP4 to start.</span>
-              : state.logs.map((l, i) => (
-                  <div key={i} style={{ color: l.startsWith('❌') ? '#F87171' : l.startsWith('✅') ? '#4ADE80' : l.startsWith('🎬') ? '#A78BFA' : '#94A3B8' }}>
+              : logs.map((l, i) => (
+                  <div key={i} style={{ color: l.startsWith('Error') ? '#F87171' : l.startsWith('Done') ? '#4ADE80' : '#94A3B8' }}>
                     {l}
                   </div>
                 ))}

@@ -24,7 +24,39 @@
       "Bash(chmod +w /Users/thanh/joy/mine/audiogram/src-tauri/binaries/macos/whisper-cpp /Users/thanh/joy/mine/audiogram/src-tauri/binaries/macos/whisper-cpp-aarch64-apple-darwin)",
       "Bash(chmod +x /Users/thanh/joy/mine/audiogram/src-tauri/binaries/macos/whisper-cpp /Users/thanh/joy/mine/audiogram/src-tauri/binaries/macos/whisper-cpp-aarch64-apple-darwin)",
       "Bash(env -i PATH=/usr/bin:/bin HOME=/Users/thanh /Users/thanh/joy/mine/audiogram/src-tauri/binaries/macos/whisper-cpp -m /Users/thanh/joy/mine/audiogram/src-tauri/models/ggml-base.bin -f /tmp/audiogram_whisper/test.wav --output-json -of /tmp/test2 -t 4)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(xargs ls)",
+      "mcp__visualize__read_me",
+      "mcp__visualize__show_widget",
+      "Bash(cargo check *)",
+      "Skill(run)",
+      "Skill(run:*)",
+      "Bash(echo \"PID: $!\")",
+      "mcp__cdcd5021-85c8-4f20-a1cb-b82aa8122cc8__whoami",
+      "mcp__cdcd5021-85c8-4f20-a1cb-b82aa8122cc8__use_figma",
+      "mcp__cdcd5021-85c8-4f20-a1cb-b82aa8122cc8__create_new_file",
+      "Bash(perl -0pi -e 's/peaks, wc, style, t,/peaks, wc, style, t_sec, dur,/g' src-tauri/src/lib.rs)",
+      "Bash(ffprobe -v quiet -print_format json -show_streams -show_format /Users/thanh/joy/mine/audiogram/test/song.mp4)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(s.get\\('codec_type'\\), s.get\\('codec_name'\\), s.get\\('width',''\\), s.get\\('height',''\\), s.get\\('r_frame_rate',''\\), s.get\\('duration',''\\)\\) for s in d['streams']]; print\\('duration:', d['format']['duration']\\)\")",
+      "Bash(ffmpeg -i /Users/thanh/joy/mine/audiogram/test/song.mp4 -vf \"select='eq\\(n,0\\)+eq\\(n,15\\)+eq\\(n,60\\)+eq\\(n,150\\)+eq\\(n,300\\)+eq\\(n,500\\)+eq\\(n,700\\)'\" -vsync vfr /tmp/frame_%03d.png -y)",
+      "Bash(ffprobe -v quiet -show_entries format_tags -of json /Users/thanh/joy/mine/audiogram/test/song.mp4)",
+      "Bash(ffmpeg -f lavfi -i color=c=black:size=1080x1080:duration=2 -vf 'subtitles='\\\\''/tmp/test_sub.srt'\\\\'':force_style='\\\\''FontName=Arial,FontSize=50,PrimaryColour=&H00FFFFFF&,OutlineColour=&H00000000&,Alignment=2,MarginV=222'\\\\''' -frames:v 1 /tmp/sub_test.png -y)",
+      "Bash(ffmpeg -f lavfi -i color=c=black:size=1080x1080:duration=10 -vf 'subtitles='\\\\''/tmp/test_sub.srt'\\\\'':force_style='\\\\''FontName=Arial,FontSize=50,PrimaryColour=&H00FFFFFF&,OutlineColour=&H00000000&,Alignment=2,MarginV=222'\\\\''' -ss 2.5 -frames:v 1 -update 1 /tmp/sub_test2.png -y)",
+      "Bash(ffmpeg -f lavfi -i 'color=c=#111827:size=1080x1080:duration=10' -vf 'ass='\\\\''/tmp/test_correct.ass'\\\\''' -ss 2.5 -frames:v 1 -update 1 /tmp/ass_correct.png -y)",
+      "Bash(/Users/thanh/joy/mine/audiogram/src-tauri/binaries/macos/whisper-cpp --help)",
+      "Bash(npx tauri *)",
+      "Bash(npm install *)",
+      "Bash(xargs cat -n)",
+      "Skill(code-review)",
+      "Skill(code-review:*)",
+      "Bash(cat > *)",
+      "Bash(rustc /tmp/verify_overflow.rs -o /tmp/verify_overflow)",
+      "Bash(/tmp/verify_overflow)",
+      "Bash(python3 -)",
+      "Bash(echo \"tsc exit: $?\")"
+    ],
+    "additionalDirectories": [
+      "/tmp"
     ]
   }
 }
