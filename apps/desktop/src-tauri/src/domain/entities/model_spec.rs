@@ -1,4 +1,5 @@
 use serde::Serialize;
+use specta::Type;
 
 /// Static catalogue of known Whisper models — lives in the domain because
 /// these are business rules (model names, sizes, quality descriptions).
@@ -15,16 +16,19 @@ pub const MODELS: &[ModelSpec] = &[
 pub struct ModelSpec {
     pub name: &'static str,
     pub label: &'static str,
-    pub size_mb: u64,
+    // u32 (not u64): specta's TS exporter rejects 64-bit ints by default since
+    // JS `number` can't represent them precisely. Model sizes-in-MB never get
+    // remotely close to u32::MAX (~4.29 billion), so no real range is lost.
+    pub size_mb: u32,
     pub note: &'static str,
 }
 
 /// Runtime representation including whether the model is downloaded — sent to the frontend.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Type)]
 pub struct ModelInfo {
     pub name: String,
     pub label: String,
-    pub size_mb: u64,
+    pub size_mb: u32,
     pub note: String,
     pub downloaded: bool,
 }

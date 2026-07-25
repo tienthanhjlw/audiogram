@@ -73,7 +73,7 @@ impl ModelRepository {
     pub fn download(&self, name: &str) -> Result<(), AppError> {
         let entry: &ModelSpec = MODELS.iter().find(|m| m.name == name)
             .ok_or_else(|| AppError::ModelDownload(format!("Unknown model: {name}")))?;
-        let size_bytes = entry.size_mb * 1_048_576u64;
+        let size_bytes = entry.size_mb as u64 * 1_048_576u64;
 
         let dir  = self.model_dir();
         let dest = self.model_path(name);

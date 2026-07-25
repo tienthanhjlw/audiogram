@@ -8,6 +8,7 @@ use crate::{
 };
 
 #[tauri::command]
+#[specta::specta]
 pub async fn render_audiogram(app: AppHandle, params: RenderJobDto) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
         RenderService::execute(app, params)
@@ -19,6 +20,7 @@ pub async fn render_audiogram(app: AppHandle, params: RenderJobDto) -> Result<St
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn resolve_ffmpeg_path(app: AppHandle) -> Result<String, String> {
     let p = FfmpegResolver::locate(&app).map_err(|e| e.to_string())?;
     emit_log(&app, format!("FFmpeg path: {}", p.display()));

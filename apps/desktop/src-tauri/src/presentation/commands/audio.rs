@@ -8,6 +8,7 @@ use crate::{
 };
 
 #[tauri::command]
+#[specta::specta]
 pub async fn analyze_spectrum(app: AppHandle, audio_path: String) -> Result<SpectrumResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let ffmpeg = FfmpegResolver::locate(&app).map_err(|e| e.to_string())?;

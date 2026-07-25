@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { save } from '@tauri-apps/plugin-dialog'
-import { invoke } from '@tauri-apps/api/core'
-import { listen } from '@tauri-apps/api/event'
 import { CANVAS_SIZES } from '../types'
 import WaveformCanvas from './WaveformCanvas'
 import { useAppStore } from '../store'
+import { ipc } from '../core/ipc/client'
+import type { AppError } from '../core/errors'
 
 export default function StepExport() {
   const audioPath      = useAppStore(s => s.audioPath)
@@ -31,28 +31,18 @@ export default function StepExport() {
   const isRendering    = useAppStore(s => s.isRendering)
   const logs           = useAppStore(s => s.logs)
   const lastOutput     = useAppStore(s => s.lastOutput)
+  const progress       = useAppStore(s => s.progress)
   const back           = useAppStore(s => s.back)
 
-  const logRef    = useRef<HTMLDivElement>(null)
-  const unsubRef  = useRef<(() => void) | undefined>(undefined)
-  const [progress, setProgress] = useState(0)
+  const logRef = useRef<HTMLDivElement>(null)
 
   const { w, h } = CANVAS_SIZES[canvasSize]
   const ratio = w / h
 
-  // Fix stale closure: use store.setState with updater fn so the listener always
-  // sees current state instead of the value captured at mount time.
-  useEffect(() => {
-    const unsubs: (() => void)[] = []
-    listen<string>('log', e => {
-      useAppStore.setState(s => ({ logs: [...s.logs, e.payload] }))
-    }).then(f => unsubs.push(f))
-    listen<number>('render_progress', e => {
-      setProgress(e.payload)
-    }).then(f => unsubs.push(f))
-    unsubRef.current = () => unsubs.forEach(f => f())
-    return () => unsubRef.current?.()
-  }, [])
+  // 'log' and 'render_progress' are subscribed once, globally, by
+  // core/ipc/events.ts's attachIpcEvents (called from main.tsx) — this used
+  // to be a local listen() here with a `progress` useState; `progress` now
+  // lives on the store's render slice instead (TECH_ARCHITECTURE.md §1.2 F3).
 
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight
@@ -67,25 +57,22 @@ export default function StepExport() {
 
     let captionsPath: string | null = null
     if (showSubtitles && segments.length > 0) {
-      captionsPath = await invoke<string>('write_ass', {
-        segments,
-        params: {
-          highlightColor: karaokeColor,
-          videoWidth: w,
-          videoHeight: h,
-          fontSizePct: fontSize,
-          layoutTemplate,
-          karaokeEnabled,
-          fontName,
-          subtitleYPct: subtitleYPct ?? undefined,
-          subtitleColor,
-        },
+      captionsPath = await ipc.writeAss(segments, {
+        highlightColor: karaokeColor,
+        videoWidth: w,
+        videoHeight: h,
+        fontSizePct: fontSize,
+        layoutTemplate,
+        karaokeEnabled,
+        fontName,
+        subtitleYPct: subtitleYPct ?? null,
+        subtitleColor,
       })
     }
 
-    setProgress(0)
     useAppStore.setState({
       isRendering: true,
+      progress: 0,
       logs: [
         'Starting render…',
         captionsPath
@@ -95,36 +82,34 @@ export default function StepExport() {
     })
 
     try {
-      const res = await invoke<string>('render_audiogram', {
-        params: {
-          audio_path: audioPath,
-          peaks,
-          bg_color: bgColor,
-          captions_path: captionsPath,
-          width: w,
-          height: h,
-          fps,
-          wave_color: waveColor,
-          wave_style: waveStyle,
-          intro_title: title || null,
-          intro_duration: 3,
-          font_size: fontSize,
-          font_name: fontName,
-          layout_template: layoutTemplate,
-          output_path: outPath,
-        },
+      const res = await ipc.renderAudiogram({
+        audio_path: audioPath,
+        peaks,
+        bg_color: bgColor,
+        captions_path: captionsPath,
+        width: w,
+        height: h,
+        fps,
+        wave_color: waveColor,
+        wave_style: waveStyle,
+        intro_title: title || null,
+        font_size: fontSize,
+        font_name: fontName,
+        layout_template: layoutTemplate,
+        output_path: outPath,
       })
-      setProgress(100)
-      useAppStore.setState(s => ({ lastOutput: res, isRendering: false, logs: [...s.logs, `Done: ${res}`] }))
-    } catch (e: any) {
-      useAppStore.setState(s => ({ logs: [...s.logs, `Error: ${e?.message ?? String(e)}`], isRendering: false }))
+      useAppStore.setState(s => ({ lastOutput: res, isRendering: false, progress: 100, logs: [...s.logs, `Done: ${res}`] }))
+    } catch (e) {
+      // ipc.* calls always reject with a normalized AppError (core/errors.ts).
+      const err = e as AppError
+      useAppStore.setState(s => ({ logs: [...s.logs, `Error: ${err.detail ?? err.message}`], isRendering: false }))
     }
   }
 
   const openOutput = () => {
     if (!lastOutput) return
     const dir = lastOutput.replace(/\\/g, '/').replace(/\/[^/]*$/, '')
-    invoke('open_folder', { path: dir })
+    ipc.openFolder(dir)
   }
 
   const hasSubtitles = showSubtitles && srtPath && segments.length > 0

@@ -28,3 +28,6 @@ thiserror = "1"
 hound = "3"
 rubato = "0.15"
 rayon = "1"
+specta = "=2.0.0-rc.20"
+tauri-specta = { version = "=2.0.0-rc.20", features = ["derive", "typescript"] }
+specta-typescript = "=0.0.7"

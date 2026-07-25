@@ -7,11 +7,13 @@ use crate::{
 };
 
 #[tauri::command]
+#[specta::specta]
 pub fn list_models(app: AppHandle) -> Vec<ModelInfo> {
     ModelService::list(app)
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn download_model(app: AppHandle, name: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
         ModelService::download(app, name).map_err(Into::into)
@@ -21,6 +23,7 @@ pub async fn download_model(app: AppHandle, name: String) -> Result<(), String> 
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn transcribe_audio(
     app: AppHandle,
     audio_path: String,
@@ -35,6 +38,7 @@ pub async fn transcribe_audio(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn write_srt(segments: Vec<Segment>) -> Result<String, String> {
     SrtWriter::write(&segments)
         .map(|p| p.to_string_lossy().to_string())
@@ -42,6 +46,7 @@ pub fn write_srt(segments: Vec<Segment>) -> Result<String, String> {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn write_ass(
     segments: Vec<Segment>,
     params: WriteAssParams,

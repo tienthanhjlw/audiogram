@@ -12,6 +12,9 @@ export interface CaptionsSlice {
   karaokeColor: string
   subtitleColor: string
   subtitleYPct: number | null
+  /** New in T8 — written once by core/ipc/events.ts's 'model_download_progress'
+   * subscription, instead of each component keeping its own local listener. */
+  modelDownload: { name: string; pct: number } | null
 }
 
 export const createCaptionsSlice: StateCreator<AppStore, [], [], CaptionsSlice> = () => ({
@@ -24,4 +27,5 @@ export const createCaptionsSlice: StateCreator<AppStore, [], [], CaptionsSlice> 
   karaokeColor: '#FFD60A',
   subtitleColor: '#FFFFFF',
   subtitleYPct: null,
+  modelDownload: null,
 })

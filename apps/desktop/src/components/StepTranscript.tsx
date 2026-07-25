@@ -1,6 +1,5 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { listen } from '@tauri-apps/api/event'
 import { convertFileSrc } from '@tauri-apps/api/core'
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso'
 import { Segment, ModelInfo, CANVAS_SIZES } from '../types'
@@ -78,16 +77,22 @@ export default function StepTranscript() {
   const showSubtitles  = useAppStore(s => s.showSubtitles)
   const isTranscribing = useAppStore(s => s.isTranscribing)
   const whisperModel   = useAppStore(s => s.whisperModel)
+  const modelDownload  = useAppStore(s => s.modelDownload)
   const set            = useAppStore(s => s.set)
   const next           = useAppStore(s => s.next)
   const back           = useAppStore(s => s.back)
+
+  // Driven by core/ipc/events.ts's global 'model_download_progress'
+  // subscription now, instead of a listener local to this component
+  // (TECH_ARCHITECTURE.md §1.2 F3) — these two stay as plain derived
+  // values so every JSX usage below is unchanged.
+  const downloadingModel = modelDownload?.name ?? null
+  const downloadPct      = modelDownload?.pct ?? 0
 
   const [error, setError]                             = useState<string | null>(null)
   const [confirmRetranscribe, setConfirmRetranscribe] = useState(false)
   const [elapsed, setElapsed]                         = useState(0)
   const [models, setModels]                           = useState<ModelInfo[]>([])
-  const [downloadingModel, setDownloadingModel]       = useState<string | null>(null)
-  const [downloadPct, setDownloadPct]                 = useState(0)
 
   const audioRef    = useRef<HTMLAudioElement>(null)
   const virtuosoRef = useRef<VirtuosoHandle>(null)
@@ -123,17 +128,13 @@ export default function StepTranscript() {
 
   useEffect(() => { refreshModels() }, [refreshModels])
 
+  // Refresh the model list once a download finishes (modelDownload goes
+  // non-null -> null), same as the old local listener's completion branch.
+  const wasDownloadingRef = useRef(false)
   useEffect(() => {
-    const unlisten = listen<{ name: string; percent: number }>('model_download_progress', e => {
-      setDownloadPct(e.payload.percent)
-      if (e.payload.percent >= 100) {
-        setDownloadingModel(null)
-        setDownloadPct(0)
-        refreshModels()
-      }
-    })
-    return () => { unlisten.then(f => f()) }
-  }, [refreshModels])
+    if (wasDownloadingRef.current && !modelDownload) refreshModels()
+    wasDownloadingRef.current = !!modelDownload
+  }, [modelDownload, refreshModels])
 
   // ── Transcription timer ───────────────────────────────────────────────────
 
@@ -183,14 +184,13 @@ export default function StepTranscript() {
 
   const startDownload = async (name: string) => {
     if (downloadingModel) return
-    setDownloadingModel(name)
-    setDownloadPct(0)
+    // No optimistic local set here anymore — the backend's progress-polling
+    // thread emits the first 'model_download_progress' (0%) within ~400ms
+    // of the command starting, which is what populates store.modelDownload.
     try {
       await invoke('download_model', { name })
     } catch (e: any) {
       setError(String(e?.message ?? e))
-      setDownloadingModel(null)
-      setDownloadPct(0)
     }
   }
 

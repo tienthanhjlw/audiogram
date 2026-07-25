@@ -5,6 +5,7 @@
 /// distinct frequency range on a log scale (60 Hz … 8 kHz).
 use rustfft::{num_complex::Complex, FftPlanner};
 use serde::Serialize;
+use specta::Type;
 use std::f32::consts::PI;
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -28,13 +29,15 @@ const MAX_FREQ: f32 = 7_800.0;
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-#[derive(Serialize)]
+#[derive(Serialize, Type)]
 pub struct SpectrumResult {
     /// Flat Vec<f32> of length `n_buckets × EQ_BANDS`.
     /// Access: `bands[t * EQ_BANDS + b]` = amplitude of band b at time bucket t.
     pub bands: Vec<f32>,
-    pub n_buckets: usize,
-    pub n_bands: usize,
+    // u32 (not usize): specta's TS exporter forbids pointer-width ints.
+    // Bucket/band counts here are in the low thousands at most.
+    pub n_buckets: u32,
+    pub n_bands: u32,
 }
 
 // ── Core STFT ─────────────────────────────────────────────────────────────────
@@ -47,7 +50,7 @@ pub fn compute_spectrum(pcm: &[f32], sample_rate: u32, bps: u32) -> SpectrumResu
     let n_buckets = if n >= FFT_SIZE { (n - FFT_SIZE) / hop + 1 } else { 0 };
 
     if n_buckets == 0 {
-        return SpectrumResult { bands: vec![], n_buckets: 0, n_bands: EQ_BANDS };
+        return SpectrumResult { bands: vec![], n_buckets: 0, n_bands: EQ_BANDS as u32 };
     }
 
     // Hann window coefficients
@@ -97,7 +100,7 @@ pub fn compute_spectrum(pcm: &[f32], sample_rate: u32, bps: u32) -> SpectrumResu
 
     // Normalize and apply mild perceptual compression (^0.65 = lift quiet content)
     let bands: Vec<f32> = raw.iter().map(|&v| (v / global_max).powf(0.65)).collect();
-    SpectrumResult { bands, n_buckets, n_bands: EQ_BANDS }
+    SpectrumResult { bands, n_buckets: n_buckets as u32, n_bands: EQ_BANDS as u32 }
 }
 
 /// Decode audio and compute STFT spectrum — used by the `analyze_spectrum` Tauri command.

@@ -1,11 +1,13 @@
 use std::process::Command;
 
 #[tauri::command]
+#[specta::specta]
 pub fn ping(name: String) -> String {
     format!("pong {name}!")
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn open_folder(path: String) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {

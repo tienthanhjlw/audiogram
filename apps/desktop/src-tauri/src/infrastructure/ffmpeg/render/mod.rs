@@ -75,7 +75,7 @@ pub fn encode_blocking(
                 emit_log(&app, format!(
                     "Spectrum: {} buckets × {} bands", r.n_buckets, r.n_bands
                 ));
-                let n = r.n_buckets;
+                let n = r.n_buckets as usize;
                 (r.bands, n)
             }
             Err(e) => {

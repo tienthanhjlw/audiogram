@@ -103,14 +103,14 @@ impl WhisperRunner {
             .map(|(i, s)| {
                 if s.get("offsets").is_some() {
                     Segment {
-                        id:    i,
+                        id:    i as u32,
                         start: s["offsets"]["from"].as_f64().unwrap_or(0.0) / 1000.0,
                         end:   s["offsets"]["to"].as_f64().unwrap_or(0.0)   / 1000.0,
                         text:  s["text"].as_str().unwrap_or("").trim().to_string(),
                     }
                 } else {
                     Segment {
-                        id:    i,
+                        id:    i as u32,
                         start: s["start"].as_f64().unwrap_or(0.0),
                         end:   s["end"].as_f64().unwrap_or(0.0),
                         text:  s["text"].as_str().unwrap_or("").trim().to_string(),

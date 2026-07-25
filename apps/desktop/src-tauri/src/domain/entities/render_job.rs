@@ -1,9 +1,10 @@
 use serde::Deserialize;
+use specta::Type;
 use crate::shared::{util::hex_to_rgb, AppError};
 use super::{Layout, WaveStyle};
 
 /// Raw DTO from Tauri IPC — mirrors the JS object sent by the frontend verbatim.
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Type)]
 pub struct RenderJobDto {
     pub audio_path:      String,
     pub peaks:           Vec<f32>,
