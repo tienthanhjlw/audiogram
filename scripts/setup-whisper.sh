@@ -15,7 +15,8 @@ WHISPER_VERSION="v1.7.5"
 OS=$(uname -s)
 ARCH=$(uname -m)
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BINARIES_DIR="$ROOT/src-tauri/binaries"
+TAURI_DIR="$ROOT/apps/desktop/src-tauri"
+BINARIES_DIR="$TAURI_DIR/binaries"
 
 green()  { printf "\033[0;32m%s\033[0m\n" "$*"; }
 yellow() { printf "\033[0;33m%s\033[0m\n" "$*"; }
@@ -119,7 +120,7 @@ elif [ "$OS" = "Linux" ]; then
 
 else
   yellow "Windows: place a statically-linked whisper-cli.exe at:"
-  yellow "  src-tauri/binaries/windows/whisper-cpp.exe"
+  yellow "  apps/desktop/src-tauri/binaries/windows/whisper-cpp.exe"
   yellow "Download from: https://github.com/ggerganov/whisper.cpp/releases"
 fi
 
@@ -129,7 +130,7 @@ green "=== Whisper model ==="
 
 MODEL="${WHISPER_MODEL:-base}"
 MODEL_FILE="$ROOT/models/ggml-${MODEL}.bin"
-BUNDLE_MODEL_DIR="$ROOT/src-tauri/models"
+BUNDLE_MODEL_DIR="$TAURI_DIR/models"
 BUNDLE_MODEL="$BUNDLE_MODEL_DIR/ggml-${MODEL}.bin"
 
 APP_ID="com.root.audiogram"

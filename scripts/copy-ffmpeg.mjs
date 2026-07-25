@@ -9,6 +9,7 @@ import ffmpeg from 'ffmpeg-static';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
+const tauriDir = join(root, 'apps', 'desktop', 'src-tauri');
 
 if (!ffmpeg) {
   console.warn('[fetch:ffmpeg] ffmpeg-static did not provide a binary for this platform.');
@@ -21,11 +22,11 @@ if (!ffmpeg) {
 function targetPath() {
   switch (process.platform) {
     case 'darwin':
-      return join(root, 'src-tauri', 'binaries', 'macos', 'ffmpeg');
+      return join(tauriDir, 'binaries', 'macos', 'ffmpeg');
     case 'win32':
-      return join(root, 'src-tauri', 'binaries', 'windows', 'ffmpeg.exe');
+      return join(tauriDir, 'binaries', 'windows', 'ffmpeg.exe');
     case 'linux':
-      return join(root, 'src-tauri', 'binaries', 'linux', 'ffmpeg');
+      return join(tauriDir, 'binaries', 'linux', 'ffmpeg');
     default:
       console.warn(`[fetch:ffmpeg] Unsupported platform: ${process.platform}`);
       process.exit(0);
