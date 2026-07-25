@@ -1,18 +1,39 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Button } from './Button'
+import { ContextMenu } from './ContextMenu'
 import { Field, FieldStack } from './Field'
+import { Input, Textarea } from './Input'
+import { Modal } from './Modal'
+import { ProgressBar } from './ProgressBar'
 import { SegmentedControl } from './SegmentedControl'
+import { Select } from './Select'
 import { Slider } from './Slider'
+import { SwatchRow } from './SwatchRow'
+import { toast, ToastViewport } from './Toast'
 import { Toggle } from './Toggle'
 import { Tooltip } from './Tooltip'
 
 // Temporary visual QA route — open with ?gallery=1. Not part of the app
 // bundle's normal navigation; wired directly from main.tsx (T4/T5).
+const WAVE_COLORS = [
+  { hex: '#7C5CFF', name: 'Purple' },
+  { hex: '#EC4FC4', name: 'Pink' },
+  { hex: '#06B6D4', name: 'Cyan' },
+  { hex: '#22C55E', name: 'Green' },
+  { hex: '#FFFFFF', name: 'White' },
+]
+
 export default function UiGallery() {
   const [mode, setMode] = useState<'design' | 'captions'>('design')
   const [fontSize, setFontSize] = useState(100)
   const [showCaptions, setShowCaptions] = useState(true)
   const [karaoke, setKaraoke] = useState(false)
+  const [model, setModel] = useState('base')
+  const [waveColor, setWaveColor] = useState('#7C5CFF')
+  const [title, setTitle] = useState('')
+  const [modalOpen, setModalOpen] = useState(false)
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
+  const contextTargetRef = useRef<HTMLDivElement>(null)
 
   return (
     <div className="min-h-screen bg-bg-app p-8 text-text-1">
@@ -93,6 +114,87 @@ export default function UiGallery() {
           ]}
         />
       </Section>
+
+      <Section title="Select">
+        <div className="w-40">
+          <Select
+            value={model}
+            onChange={setModel}
+            options={[
+              { value: 'base', label: 'Base · 142 MB' },
+              { value: 'small', label: 'Small · 466 MB' },
+              { value: 'medium', label: 'Medium · 1.5 GB' },
+            ]}
+          />
+        </div>
+      </Section>
+
+      <Section title="Input / Textarea">
+        <div className="flex w-72 flex-col gap-3">
+          <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Episode title" />
+          <Textarea placeholder="Caption text — grows up to 4 lines" />
+        </div>
+      </Section>
+
+      <Section title="SwatchRow">
+        <SwatchRow value={waveColor} onChange={setWaveColor} swatches={WAVE_COLORS} />
+      </Section>
+
+      <Section title="ProgressBar">
+        <div className="flex w-64 flex-col gap-3">
+          <ProgressBar value={42} />
+          <ProgressBar />
+        </div>
+      </Section>
+
+      <Section title="Modal">
+        <Row>
+          <Button variant="secondary" onClick={() => setModalOpen(true)}>Open modal</Button>
+        </Row>
+        <Modal open={modalOpen} onClose={() => setModalOpen(false)} className="w-[360px] p-5">
+          <div className="mb-2 text-[15px] font-semibold">Export video</div>
+          <div className="mb-4 text-[13px] text-text-2">Sample modal content with a focus trap.</div>
+          <Row>
+            <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button>
+            <Button onClick={() => setModalOpen(false)}>Export</Button>
+          </Row>
+        </Modal>
+      </Section>
+
+      <Section title="ContextMenu">
+        <div
+          ref={contextTargetRef}
+          onContextMenu={e => {
+            e.preventDefault()
+            setMenu({ x: e.clientX, y: e.clientY })
+          }}
+          className="flex h-16 w-72 items-center justify-center rounded-[var(--radius-m)] border border-dashed border-border text-[12px] text-text-3"
+        >
+          Right-click here
+        </div>
+        <ContextMenu
+          open={!!menu}
+          x={menu?.x ?? 0}
+          y={menu?.y ?? 0}
+          onClose={() => setMenu(null)}
+          items={[
+            { label: 'Play from here', onSelect: () => {} },
+            { label: 'Split at playhead', onSelect: () => {} },
+            { separator: true },
+            { label: 'Delete', onSelect: () => {}, danger: true },
+          ]}
+        />
+      </Section>
+
+      <Section title="Toast">
+        <Row>
+          <Button variant="secondary" onClick={() => toast.info('Model download started')}>Info</Button>
+          <Button variant="secondary" onClick={() => toast.success('Export complete')}>Success</Button>
+          <Button variant="secondary" onClick={() => toast.error('Export failed')}>Error</Button>
+        </Row>
+      </Section>
+
+      <ToastViewport />
     </div>
   )
 }
