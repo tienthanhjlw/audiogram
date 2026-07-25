@@ -1,16 +1,6 @@
-@import "tailwindcss";
-
-@theme {
-  --color-primary: #6C4FF6;
-  --color-primary-light: #EDE9FF;
-  --color-bg: #F8F9FA;
-  --color-surface: #FFFFFF;
-  --color-text-1: #111827;
-  --color-text-2: #6B7280;
-  --color-border: #E5E7EB;
-  --color-success: #22C55E;
-  --color-danger: #EF4444;
-}
+/* Theme (colors, font-family, Tailwind import) now lives in ui/tokens.css,
+ * loaded before this file. This stylesheet only keeps the layout reset and
+ * utility classes/keyframes the legacy Step components still reference. */
 
 *, *::before, *::after { box-sizing: border-box; }
 
@@ -18,10 +8,7 @@ html, body, #root {
   height: 100%;
   margin: 0;
   padding: 0;
-  background: #F8F9FA;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
-  color: #111827;
   -webkit-user-select: none;
   user-select: none;
 }
@@ -30,10 +17,6 @@ html, body, #root {
   -webkit-user-select: text;
   user-select: text;
 }
-
-::-webkit-scrollbar { width: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #E5E7EB; border-radius: 3px; }
 
 .drop-active {
   border-color: #6C4FF6 !important;
