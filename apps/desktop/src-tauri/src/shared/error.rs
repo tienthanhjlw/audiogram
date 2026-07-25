@@ -31,6 +31,12 @@ pub enum AppError {
 
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
+
+    #[error("Cancelled")]
+    Cancelled,
+
+    #[error("A render is already in progress")]
+    AlreadyRendering,
 }
 
 /// Tauri commands return `Result<T, String>` — this blanket conversion makes

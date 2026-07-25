@@ -1,5 +1,6 @@
 import { listen } from '@tauri-apps/api/event'
 import type { useAppStore } from '../../store'
+import type { RenderEvent } from './renderEvent'
 
 type Store = typeof useAppStore
 
@@ -22,6 +23,11 @@ export function attachIpcEvents(store: Store): () => void {
   listen<{ name: string; percent: number }>('model_download_progress', e => {
     const { name, percent } = e.payload
     store.setState({ modelDownload: percent >= 100 ? null : { name, pct: percent } })
+  }).then(f => unsubs.push(f))
+
+  // T9 — structured channel alongside 'log'/'render_progress' above.
+  listen<RenderEvent>('render_event', e => {
+    store.getState().onRenderEvent(e.payload)
   }).then(f => unsubs.push(f))
 
   return () => unsubs.forEach(f => f())

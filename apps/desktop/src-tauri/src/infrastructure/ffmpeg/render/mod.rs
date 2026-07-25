@@ -21,13 +21,14 @@ use std::{
     io::{BufRead, BufReader, Write},
     path::{Path, PathBuf},
     process::{Command, Stdio},
+    sync::{atomic::{AtomicBool, Ordering}, Arc},
     thread,
 };
 use rayon::prelude::*;
 use tauri::{AppHandle, Emitter};
 
 use crate::{
-    domain::entities::{Layout, RenderJob},
+    domain::entities::{Layout, RenderEvent, RenderJob, RenderStage, SerializableError},
     infrastructure::{
         ffmpeg::{
             audio::{audio_duration, decode_pcm_hound},
@@ -43,14 +44,25 @@ use self::{
     wave::{advance_eq_state, effect_for},
 };
 
+fn emit_stage(app: &AppHandle, stage: RenderStage) {
+    let _ = app.emit("render_event", RenderEvent::Stage { stage });
+}
+
 /// Encode a `RenderJob` to MP4 on the current thread.
-/// Streams `render_progress` (0–100) and `log` events via `app`.
+/// Streams `render_progress`/`log` (legacy) and `render_event`
+/// (TECH_ARCHITECTURE.md §2.3) events via `app`. `cancel` is polled once per
+/// batch (§4.2) — batch-granularity, not frame-granularity: the Stage 2
+/// render loop is a rayon parallel iterator with no cheap per-frame
+/// short-circuit, and a few frames' worth of extra latency (a handful of ms)
+/// is not perceptible as "cancel didn't work" to a human clicking a button.
 pub fn encode_blocking(
     app: AppHandle,
     ffmpeg: PathBuf,
     job: RenderJob,
+    cancel: Arc<AtomicBool>,
 ) -> Result<PathBuf, AppError> {
     emit_log(&app, format!("FFmpeg: {}", ffmpeg.display()));
+    emit_stage(&app, RenderStage::Preparing);
 
     // ── Stage 1a: Audio metadata ──────────────────────────────────────────────
     let duration = audio_duration(&ffmpeg, &job.audio_path);
@@ -61,6 +73,13 @@ pub fn encode_blocking(
     emit_log(&app, format!(
         "Audio: {:.1}s → {} frames @ {} fps", duration, total_frames, job.fps
     ));
+
+    // The .ass file itself was already written by the separate `write_ass`
+    // command before this job started — this stage just marks "burning
+    // captions into the video" as a conceptual step for the UI's benefit.
+    if job.captions_path.is_some() {
+        emit_stage(&app, RenderStage::Captions);
+    }
 
     let w = job.width  as usize;
     let h = job.height as usize;
@@ -143,6 +162,8 @@ pub fn encode_blocking(
         });
     }
 
+    emit_stage(&app, RenderStage::Frames);
+
     // ── Stage 2 + 3: Parallel render → sequential stream write ───────────────
     //
     // One flat buffer is allocated before the loop and reused for every batch:
@@ -162,6 +183,21 @@ pub fn encode_blocking(
         let mut batch_buf = vec![0u8; batch_size * frame_size];
 
         for batch_start in (0..total_frames).step_by(batch_size) {
+            // Checked once per batch, not per frame — Stage 2 below is a
+            // rayon parallel iterator with no cheap per-frame short-circuit,
+            // and a few frames' worth of latency is imperceptible as "cancel
+            // didn't work" (TECH_ARCHITECTURE.md §4.2).
+            if cancel.load(Ordering::Relaxed) {
+                drop(stdin);
+                let _ = child.kill();
+                let _ = child.wait();
+                let _ = fs::remove_file(&tmp_out);
+                let _ = app.emit("render_event", RenderEvent::Failed {
+                    error: SerializableError { kind: "cancelled".into(), message: "Cancelled".into() },
+                });
+                return Err(AppError::Cancelled);
+            }
+
             let batch_len = (batch_start + batch_size).min(total_frames) - batch_start;
 
             // Stage 2: render each frame in the batch into its slice of batch_buf ─
@@ -190,11 +226,19 @@ pub fn encode_blocking(
                 stdin.write_all(&batch_buf[start..start + frame_size])
                     .map_err(|e| AppError::Encode(format!("write frame {fi}: {e}")))?;
                 if fi % progress_step == 0 {
-                    let _ = app.emit("render_progress", ((fi + 1) * 99 / total_frames) as u8);
+                    let pct = ((fi + 1) * 99 / total_frames) as u8;
+                    let _ = app.emit("render_progress", pct);
+                    let _ = app.emit("render_event", RenderEvent::Progress {
+                        pct: pct as f32,
+                        frame: (fi + 1) as u32,
+                        total: total_frames as u32,
+                    });
                 }
             }
         }
     } // stdin dropped here → EOF to FFmpeg
+
+    emit_stage(&app, RenderStage::Encoding);
 
     let status = child.wait()
         .map_err(|e| AppError::Encode(format!("ffmpeg wait: {e}")))?;
@@ -208,7 +252,9 @@ pub fn encode_blocking(
         let _ = fs::remove_file(&tmp_out);
     }
 
+    let output = final_out.to_string_lossy().to_string();
     let _ = app.emit("render_progress", 100u8);
+    let _ = app.emit("render_event", RenderEvent::Done { output: output.clone() });
     emit_log(&app, "Done!");
     Ok(final_out)
 }

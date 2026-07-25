@@ -17,13 +17,13 @@ use tauri::{AppHandle, Emitter};
 use tauri::menu::{Menu, MenuItem};
 use tauri_specta::{collect_commands, Builder};
 
-use application::model::ModelService;
+use application::{model::ModelService, render::RenderControl};
 use infrastructure::ffmpeg::resolver::FfmpegResolver;
 use presentation::commands::{
     audio::analyze_spectrum,
     transcript::{download_model, list_models, transcribe_audio, write_ass, write_srt},
     utils::{open_folder, ping},
-    video::{render_audiogram, resolve_ffmpeg_path},
+    video::{cancel_render, render_audiogram, resolve_ffmpeg_path},
 };
 
 // ── Application entry point ───────────────────────────────────────────────────
@@ -39,6 +39,7 @@ pub fn run() {
         ping,
         open_folder,
         render_audiogram,
+        cancel_render,
         resolve_ffmpeg_path,
         analyze_spectrum,
         transcribe_audio,
@@ -88,6 +89,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(specta_builder.invoke_handler())
+        .manage(RenderControl::default())
         .setup(|app| {
             ModelService::seed_bundled(app.handle());
             Ok(())

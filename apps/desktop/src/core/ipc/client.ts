@@ -50,6 +50,7 @@ export const ipc = {
   writeAss: (segments: Segment[], params: WriteAssParams) => call(commands.writeAss(segments, params)),
   listModels: () => callDirect(commands.listModels()),
   downloadModel: (name: string) => call(commands.downloadModel(name)),
+  cancelRender: () => callDirect(commands.cancelRender()),
 }
 
 export type { ModelInfo, RenderJobDto, Segment, SpectrumResult, WriteAssParams }

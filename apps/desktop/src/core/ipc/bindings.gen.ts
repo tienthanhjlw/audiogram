@@ -26,6 +26,9 @@ async renderAudiogram(params: RenderJobDto) : Promise<Result<string, string>> {
     else return { status: "error", error: e  as any };
 }
 },
+async cancelRender() : Promise<void> {
+    await TAURI_INVOKE("cancel_render");
+},
 async resolveFfmpegPath() : Promise<Result<string, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("resolve_ffmpeg_path") };
