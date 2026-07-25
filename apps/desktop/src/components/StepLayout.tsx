@@ -83,7 +83,6 @@ export default function StepLayout() {
     const sel = window.getSelection()
     sel?.removeAllRanges()
     sel?.addRange(range)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingTitle])
 
   const exitTitleEdit = useCallback(() => setEditingTitle(false), [])
