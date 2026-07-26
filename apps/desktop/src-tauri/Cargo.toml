@@ -40,6 +40,11 @@ image = { version = "0.25", default-features = false, features = ["jpeg", "png",
 # (which is why the canvas preview shows a photo upright/correctly cropped
 # but the exported video showed it sideways with the wrong crop region).
 kamadak-exif = "0.5"
+# OPTIMIZATION_PLAN.md F7 — whisper model downloads used a `curl` subprocess
+# (no guaranteed presence on a clean Windows install). rustls-tls avoids an
+# OpenSSL system dependency; blocking client matches the existing
+# spawn_blocking call site (presentation/commands/transcript.rs).
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls"] }
 specta = { workspace = true }
 tauri-specta = { version = "=2.0.0-rc.20", features = ["derive", "typescript"] }
 specta-typescript = "=0.0.7"

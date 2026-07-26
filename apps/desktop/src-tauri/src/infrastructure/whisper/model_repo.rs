@@ -1,14 +1,9 @@
 /// Repository for whisper model files — download, locate, seed bundled model.
 use std::{
     fs,
+    io::{Read, Write},
     path::PathBuf,
-    process::Command,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-    thread,
-    time::Duration,
+    time::{Duration, Instant},
 };
 use tauri::{AppHandle, Emitter, Manager};
 
@@ -91,41 +86,54 @@ impl ModelRepository {
             }
         }
 
-        // Polling thread: reports file-size progress while curl writes
-        let done      = Arc::new(AtomicBool::new(false));
-        let done_poll = done.clone();
-        let app_poll  = self.app.clone();
-        let dest_poll = dest.clone();
-        let name_poll = name.to_string();
-        thread::spawn(move || {
-            while !done_poll.load(Ordering::Relaxed) {
-                let current = fs::metadata(&dest_poll).map(|m| m.len()).unwrap_or(0);
-                let pct = if size_bytes > 0 {
-                    ((current * 99) / size_bytes).min(99) as u8
-                } else { 0 };
-                let _ = app_poll.emit("model_download_progress",
-                    DownloadProgress { name: name_poll.clone(), percent: pct });
-                thread::sleep(Duration::from_millis(400));
-            }
-        });
-
         emit_log(&self.app, format!("Downloading ggml-{name}.bin (~{} MB)…", entry.size_mb));
 
-        let status = Command::new("curl")
-            .args(["-L", "--fail", "--create-dirs", "-o"])
-            .arg(&dest)
-            .arg(&url)
-            .status()
-            .map_err(|e| {
-                done.store(true, Ordering::Relaxed);
-                AppError::ModelDownload(format!("curl not found — install curl and retry: {e}"))
-            })?;
+        // OPTIMIZATION_PLAN.md F7 — was a `curl` subprocess + a separate
+        // file-size-polling thread for progress (no guaranteed `curl` on a
+        // clean Windows install). `reqwest::blocking` streams the response
+        // body directly, so progress comes from bytes actually read — no
+        // polling thread needed. This still runs on the same
+        // `spawn_blocking` worker the command handler already uses
+        // (presentation/commands/transcript.rs's `download_model`), so a
+        // blocking client is the right tool, not `reqwest::Client` + tokio.
+        let response = reqwest::blocking::get(&url)
+            .map_err(|e| AppError::ModelDownload(format!("Download request failed: {e}")))?;
 
-        done.store(true, Ordering::Relaxed);
+        if !response.status().is_success() {
+            return Err(AppError::ModelDownload(format!(
+                "Download failed (HTTP {})", response.status()
+            )));
+        }
 
-        if !status.success() {
+        let total = response.content_length().unwrap_or(size_bytes);
+        let mut reader = response;
+        let mut file = fs::File::create(&dest)?;
+        let mut buf = [0u8; 64 * 1024];
+        let mut downloaded: u64 = 0;
+        let mut last_emit = Instant::now();
+
+        let result: Result<(), AppError> = loop {
+            let n = match reader.read(&mut buf) {
+                Ok(0) => break Ok(()),
+                Ok(n) => n,
+                Err(e) => break Err(AppError::ModelDownload(format!("Download read error: {e}"))),
+            };
+            if let Err(e) = file.write_all(&buf[..n]) {
+                break Err(AppError::Io(e));
+            }
+            downloaded += n as u64;
+            if last_emit.elapsed() >= Duration::from_millis(400) {
+                let pct = if total > 0 { ((downloaded * 99) / total).min(99) as u8 } else { 0 };
+                let _ = self.app.emit("model_download_progress",
+                    DownloadProgress { name: name.to_string(), percent: pct });
+                last_emit = Instant::now();
+            }
+        };
+
+        if let Err(e) = result {
+            drop(file);
             let _ = fs::remove_file(&dest);
-            return Err(AppError::ModelDownload(format!("Download failed (curl exit {status})")));
+            return Err(e);
         }
 
         let _ = self.app.emit("model_download_progress",
