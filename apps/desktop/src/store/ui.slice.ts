@@ -4,6 +4,14 @@ import type { AppStore } from './index'
 
 export type Mode = 'design' | 'captions'
 
+/** Which canvas element the Design mode inspector shows (UI_DESIGN_SPEC.md
+ * §4.3) — null means the global Canvas section. Lives in ui.slice (not a
+ * local component state) per PHASE2_TASKS.md's front-matter decision table:
+ * the canvas stage (P2-T7), design panel (P2-T6), and inspector (P2-T8) are
+ * sibling features and none may import another directly, so the store is
+ * the only shared channel between them. */
+export type SelectedEl = 'wave' | 'title' | 'subtitle' | 'avatar' | null
+
 const STEPS: Step[] = ['upload', 'layout', 'transcript', 'export']
 
 export interface UiSlice {
@@ -12,6 +20,8 @@ export interface UiSlice {
   step: Step
   /** New in Phase 1 (T7) — which panel set Studio mode shows (T11). */
   mode: Mode
+  selectedEl: SelectedEl
+  selectEl: (el: SelectedEl) => void
   /** New in T13 — set by the Help > Keyboard Shortcuts native menu item
    * (app/actions.ts's openShortcutsHelp), read by ShortcutsHelpModal.tsx. */
   shortcutsHelpOpen: boolean
@@ -28,6 +38,8 @@ export interface UiSlice {
 export const createUiSlice: StateCreator<AppStore, [], [], UiSlice> = (set, get) => ({
   step: 'upload',
   mode: 'design',
+  selectedEl: null,
+  selectEl: (el) => set({ selectedEl: el }),
   shortcutsHelpOpen: false,
   set: (patch) => set(patch),
   goTo: (step) => set({ step }),
