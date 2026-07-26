@@ -12,6 +12,10 @@ import { SwatchRow } from './SwatchRow'
 import { toast, ToastViewport } from './Toast'
 import { Toggle } from './Toggle'
 import { Tooltip } from './Tooltip'
+import { WaveMiniPreview } from '../features/preview/WaveMiniPreview'
+import { renderTemplateThumb } from '../features/preview/thumbnailer'
+import { wavePoint } from '../extensions'
+import { LAYOUT_TEMPLATES } from '../types'
 
 // Temporary visual QA route — open with ?gallery=1. Not part of the app
 // bundle's normal navigation; wired directly from main.tsx (T4/T5).
@@ -192,6 +196,34 @@ export default function UiGallery() {
           <Button variant="secondary" onClick={() => toast.success('Export complete')}>Success</Button>
           <Button variant="secondary" onClick={() => toast.error('Export failed')}>Error</Button>
         </Row>
+      </Section>
+
+      <Section title="Template thumbnails (P2-T3)">
+        <div className="grid grid-cols-6 gap-3">
+          {LAYOUT_TEMPLATES.map(t => (
+            <div key={t.id} className="flex flex-col gap-1">
+              <img
+                src={renderTemplateThumb(t.id)}
+                alt={t.name}
+                className="aspect-video w-full rounded-[var(--radius-s)] border border-border object-cover"
+              />
+              <span className="text-center text-[11px] text-text-2">{t.name}</span>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Wave style mini previews (P2-T3)">
+        <div className="grid grid-cols-5 gap-3">
+          {wavePoint.list().map(w => (
+            <div key={w.manifest.id} className="flex flex-col gap-1">
+              <div className="h-11 w-full overflow-hidden rounded-[var(--radius-s)] border border-border bg-bg-elevated">
+                <WaveMiniPreview extensionId={w.manifest.id} />
+              </div>
+              <span className="text-center text-[11px] text-text-2">{w.manifest.label}</span>
+            </div>
+          ))}
+        </div>
       </Section>
 
       <ToastViewport />

@@ -98,4 +98,14 @@ export default tseslint.config(
       }],
     },
   },
+
+  // __gallery__.tsx is a QA-only route (P1-T4), not a real ui/ primitive —
+  // it's allowed to reach into features/ to preview things like the
+  // template thumbnails/wave mini previews (P2-T3) that live there.
+  {
+    files: ['src/ui/__gallery__.tsx'],
+    rules: {
+      'import/no-restricted-paths': 'off',
+    },
+  },
 )
