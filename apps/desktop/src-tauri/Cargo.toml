@@ -31,6 +31,15 @@ thiserror = { workspace = true }
 hound = "3"
 rubato = "0.15"
 rayon = "1"
+# Decodes StepLayout's cover image for export — matches the picker's file
+# filter (jpg/jpeg/png/webp/gif/bmp) exactly, default-features off to skip
+# codecs (tiff/avif/exr/...) the app never offers to pick.
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "gif", "webp", "bmp"] }
+# `image` decodes raw pixel data only — it does not apply the EXIF
+# `Orientation` tag phone-camera photos commonly carry, unlike browsers
+# (which is why the canvas preview shows a photo upright/correctly cropped
+# but the exported video showed it sideways with the wrong crop region).
+kamadak-exif = "0.5"
 specta = { workspace = true }
 tauri-specta = { version = "=2.0.0-rc.20", features = ["derive", "typescript"] }
 specta-typescript = "=0.0.7"

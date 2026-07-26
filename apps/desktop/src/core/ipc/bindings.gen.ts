@@ -99,7 +99,13 @@ export type ModelInfo = { name: string; label: string; size_mb: number; note: st
 /**
  * Raw DTO from Tauri IPC — mirrors the JS object sent by the frontend verbatim.
  */
-export type RenderJobDto = { audio_path: string; peaks: number[]; bg_color: string; captions_path: string | null; width: number; height: number; fps: number; wave_color: string; wave_style: string; intro_title: string | null; font_size: number | null; font_name: string | null; layout_template: string | null; output_path: string }
+export type RenderJobDto = { audio_path: string; peaks: number[]; bg_color: string; captions_path: string | null; width: number; height: number; fps: number; wave_color: string; wave_style: string; intro_title: string | null; font_size: number | null; font_name: string | null; layout_template: string | null; output_path: string; 
+/**
+ * Absolute path to the avatar/background image picked in StepLayout —
+ * mirrors WaveformCanvas.tsx's `coverImagePath`. `None`/empty means no
+ * image was chosen; the renderer falls back to its placeholder gradient.
+ */
+cover_image_path: string | null }
 export type Segment = { id: number; start: number; end: number; text: string }
 export type SpectrumResult = { 
 /**

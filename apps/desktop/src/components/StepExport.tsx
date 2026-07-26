@@ -97,6 +97,7 @@ export default function StepExport() {
         font_name: fontName,
         layout_template: layoutTemplate,
         output_path: outPath,
+        cover_image_path: coverImagePath || null,
       })
       useAppStore.setState(s => ({ lastOutput: res, isRendering: false, progress: 100, logs: [...s.logs, `Done: ${res}`] }))
     } catch (e) {

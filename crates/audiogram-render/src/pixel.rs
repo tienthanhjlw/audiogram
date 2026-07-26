@@ -203,6 +203,128 @@ pub fn draw_thick_line(
     }
 }
 
+// ── Cover-image compositing ────────────────────────────────
+// Mirrors WaveformCanvas.tsx's cover-fit `drawImage` calls (drawAvatar,
+// drawSplit's left panel, drawFullBg's background) — same scale/anchor math,
+// bilinear-sampled since these are photos, not vector shapes.
+
+/// Bilinear-sample the RGBA `src` image (`sw × sh`) at floating-point `(x, y)`.
+#[inline]
+fn sample_bilinear(src: &[u8], sw: u32, sh: u32, x: f32, y: f32) -> [u8; 3] {
+    let sw = sw.max(1);
+    let sh = sh.max(1);
+    let x = x.clamp(0.0, sw as f32 - 1.0);
+    let y = y.clamp(0.0, sh as f32 - 1.0);
+    let x0 = x.floor() as u32;
+    let y0 = y.floor() as u32;
+    let x1 = (x0 + 1).min(sw - 1);
+    let y1 = (y0 + 1).min(sh - 1);
+    let fx = x - x0 as f32;
+    let fy = y - y0 as f32;
+    let at = |xx: u32, yy: u32| -> [f32; 3] {
+        let i = ((yy * sw + xx) * 4) as usize;
+        [src[i] as f32, src[i + 1] as f32, src[i + 2] as f32]
+    };
+    let c00 = at(x0, y0);
+    let c10 = at(x1, y0);
+    let c01 = at(x0, y1);
+    let c11 = at(x1, y1);
+    let mut out = [0u8; 3];
+    for k in 0..3 {
+        let top = c00[k] * (1.0 - fx) + c10[k] * fx;
+        let bot = c01[k] * (1.0 - fx) + c11[k] * fx;
+        out[k] = (top * (1.0 - fy) + bot * fy).round() as u8;
+    }
+    out
+}
+
+/// Cover-fit-blit `src` into the circle of radius `r` centred at `(cx, cy)` —
+/// scaled to fill the circle's bounding square and centred within it.
+/// Mirrors WaveformCanvas.tsx's `drawAvatar()` image branch.
+#[allow(clippy::too_many_arguments)]
+pub fn draw_image_cover_circle(
+    px: &mut [u8],
+    w: usize,
+    h: usize,
+    cx: i32,
+    cy: i32,
+    r: i32,
+    src: &[u8],
+    sw: u32,
+    sh: u32,
+) {
+    if r <= 0 || sw == 0 || sh == 0 { return; }
+    let scale = ((r * 2) as f32 / sw as f32).max((r * 2) as f32 / sh as f32);
+    let dw = sw as f32 * scale;
+    let dh = sh as f32 * scale;
+    let ox = cx as f32 - dw / 2.0;
+    let oy = cy as f32 - dh / 2.0;
+    let r2 = r * r;
+    for dy in -r..=r {
+        for dx in -r..=r {
+            if dx * dx + dy * dy > r2 { continue; }
+            let x = cx + dx;
+            let y = cy + dy;
+            if x < 0 || x >= w as i32 || y < 0 || y >= h as i32 { continue; }
+            let sx = (x as f32 - ox) / scale;
+            let sy = (y as f32 - oy) / scale;
+            let col = sample_bilinear(src, sw, sh, sx, sy);
+            blend(px, (y as usize * w + x as usize) * 4, col, 1.0);
+        }
+    }
+}
+
+/// Cover-fit-blit `src` into the rect `[x0, x1) × [y0, y1)`, anchored at the
+/// rect's top-left corner (not centred — matching the exact overflow
+/// direction WaveformCanvas.tsx's `drawSplit()` left panel produces).
+#[allow(clippy::too_many_arguments)]
+pub fn draw_image_cover_rect_topleft(
+    px: &mut [u8],
+    w: usize,
+    h: usize,
+    x0: usize,
+    y0: usize,
+    x1: usize,
+    y1: usize,
+    src: &[u8],
+    sw: u32,
+    sh: u32,
+) {
+    let rw = x1.saturating_sub(x0);
+    let rh = y1.saturating_sub(y0);
+    if rw == 0 || rh == 0 || sw == 0 || sh == 0 { return; }
+    let scale = (rw as f32 / sw as f32).max(rh as f32 / sh as f32);
+    for y in y0..y1.min(h) {
+        for x in x0..x1.min(w) {
+            let sx = (x - x0) as f32 / scale;
+            let sy = (y - y0) as f32 / scale;
+            let col = sample_bilinear(src, sw, sh, sx, sy);
+            blend(px, (y * w + x) * 4, col, 1.0);
+        }
+    }
+}
+
+/// Cover-fit-blit `src` to fill the whole `w × h` canvas, centred
+/// horizontally and anchored to the top. Mirrors WaveformCanvas.tsx's
+/// `drawFullBg()` background image (the frontend draws it twice, once
+/// opaque then again at 55% alpha over itself — compositing identical
+/// content over itself is a no-op regardless of alpha, so a single opaque
+/// draw here produces the same visible result).
+pub fn draw_image_cover_full(px: &mut [u8], w: usize, h: usize, src: &[u8], sw: u32, sh: u32) {
+    if sw == 0 || sh == 0 { return; }
+    let scale = (w as f32 / sw as f32).max(h as f32 / sh as f32);
+    let dw = sw as f32 * scale;
+    let ox = w as f32 / 2.0 - dw / 2.0;
+    for y in 0..h {
+        for x in 0..w {
+            let sx = (x as f32 - ox) / scale;
+            let sy = y as f32 / scale;
+            let col = sample_bilinear(src, sw, sh, sx, sy);
+            blend(px, (y * w + x) * 4, col, 1.0);
+        }
+    }
+}
+
 // ── Internal helpers ──────────────────────────────────────
 
 #[inline]

@@ -13,7 +13,7 @@ pub use progress::{NullSink, ProgressSink};
 
 #[cfg(test)]
 mod tests {
-    use super::frame::{compute_frame_luts, render_frame_into};
+    use super::frame::{compute_frame_luts, render_frame_into, CoverImage};
     use audiogram_core::entities::{Layout, WaveStyle};
 
     /// PACKAGE_SPLIT_PLAN.md §3.1 / PHASE1_TASKS.md T16's acceptance test for
@@ -38,6 +38,7 @@ mod tests {
             Layout::Minimal,
             &[], &[], 0,
             &luts,
+            None,
         );
 
         assert_eq!(buf.len(), w * h * 4);
@@ -55,5 +56,39 @@ mod tests {
         let mid_pixel = &buf[mid_idx..mid_idx + 3];
 
         assert_ne!(bg_pixel, mid_pixel, "expected the waveform to draw something distinct from the background");
+    }
+
+    /// Regression test for the cover-image-never-reaches-export bug: with a
+    /// `CoverImage` passed in, the Spotify avatar circle should show that
+    /// image's colour, not the placeholder gradient. A solid-red 4x4 "photo"
+    /// cover-fit into the circle should be pure red at the avatar's centre.
+    #[test]
+    fn draws_cover_image_into_the_avatar_circle() {
+        let (w, h) = (320usize, 180usize);
+        let bg_color = [0x11, 0x18, 0x27];
+        let wave_color = [0xFF, 0xFF, 0xFF];
+        let peaks = vec![0.5f32; 1200];
+        let luts = compute_frame_luts(w, h, bg_color, Layout::Spotify);
+
+        let cover = CoverImage { pixels: [255u8, 0, 0, 255].repeat(16), width: 4, height: 4 };
+
+        let mut buf = vec![0u8; w * h * 4];
+        render_frame_into(
+            &mut buf, w, h,
+            &peaks, wave_color, WaveStyle::Bar,
+            0.0, 10.0,
+            Layout::Spotify,
+            &[], &[], 0,
+            &luts,
+            Some(&cover),
+        );
+
+        let av_cy = (h as f32 * 0.26) as usize;
+        let av_cx = w / 2;
+        let idx = (av_cy * w + av_cx) * 4;
+        assert_eq!(
+            &buf[idx..idx + 3], &[255, 0, 0],
+            "expected the cover image (solid red) at the avatar centre",
+        );
     }
 }

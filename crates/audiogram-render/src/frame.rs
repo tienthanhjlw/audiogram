@@ -1,10 +1,23 @@
 /// Frame renderer — orchestrates background, layout, and waveform into one RGBA buffer.
 /// Layout geometry here must stay in sync with WaveformCanvas.tsx (the preview is the contract).
 use crate::{
-    pixel::{blend, draw_circle_ring, draw_gradient_circle, fill_rect},
+    pixel::{
+        blend, draw_circle_ring, draw_gradient_circle, draw_image_cover_circle,
+        draw_image_cover_full, draw_image_cover_rect_topleft, fill_rect,
+    },
     wave::render_wave,
 };
 use audiogram_core::entities::{Layout, WaveStyle};
+
+/// Decoded RGBA avatar/background image (StepLayout's cover image), decoded
+/// once per render in the app crate's Stage 1 (mirrors the FFT spectrum
+/// precompute) and passed by shared reference into every frame — this crate
+/// has no file I/O of its own (PACKAGE_SPLIT_PLAN.md §3.1).
+pub struct CoverImage {
+    pub pixels: Vec<u8>,
+    pub width: u32,
+    pub height: u32,
+}
 
 // ── Shared constants (must match WaveformCanvas.tsx) ─────────────────────────
 // Sourced from contract/constants.json via audiogram-core's contract_gen.rs
@@ -99,6 +112,7 @@ pub fn render_frame_into(
     fft_peaks: &[f32],
     fft_n_buckets: usize,
     luts: &FrameLuts,
+    cover: Option<&CoverImage>,
 ) {
     debug_assert_eq!(buf.len(), w * h * 4);
 
@@ -124,12 +138,18 @@ pub fn render_frame_into(
         Layout::Spotify => {
             let av_cy = (h as f32 * 0.26) as i32;
             let av_r  = (h as f32 * 0.18) as i32;
-            draw_gradient_circle(buf, w, h, w as i32 / 2, av_cy, av_r, PINK, wc);
+            match cover {
+                Some(img) => draw_image_cover_circle(buf, w, h, w as i32 / 2, av_cy, av_r, &img.pixels, img.width, img.height),
+                None => draw_gradient_circle(buf, w, h, w as i32 / 2, av_cy, av_r, PINK, wc),
+            }
             draw_circle_ring(buf, w, h, w as i32 / 2, av_cy, av_r, 2, [255, 255, 255], 0.22);
             wave(buf, w as f32 * 0.04, h as f32 * 0.60, w as f32 * 0.92, h as f32 * 0.22);
         }
         Layout::Split => {
-            fill_rect(buf, w, h, 0, 0, w / 2, h, [0x3D, 0x1A, 0x6E], 0.80);
+            match cover {
+                Some(img) => draw_image_cover_rect_topleft(buf, w, h, 0, 0, w / 2, h, &img.pixels, img.width, img.height),
+                None => fill_rect(buf, w, h, 0, 0, w / 2, h, [0x3D, 0x1A, 0x6E], 0.80),
+            }
             let bs = (w as f32 * 0.42) as usize;
             let be = (w as f32 * 0.56) as usize;
             for x in bs..be.min(w) {
@@ -139,11 +159,16 @@ pub fn render_frame_into(
             wave(buf, w as f32 * 0.55, h as f32 * 0.42, w as f32 * 0.41, h as f32 * 0.30);
         }
         Layout::FullBg => {
-            if !luts.fullbg_alpha.is_empty() {
-                for y in 0..h {
-                    let row = y * w;
-                    for x in 0..w {
-                        blend(buf, (row + x) * 4, PINK, luts.fullbg_alpha[row + x]);
+            match cover {
+                Some(img) => draw_image_cover_full(buf, w, h, &img.pixels, img.width, img.height),
+                None => {
+                    if !luts.fullbg_alpha.is_empty() {
+                        for y in 0..h {
+                            let row = y * w;
+                            for x in 0..w {
+                                blend(buf, (row + x) * 4, PINK, luts.fullbg_alpha[row + x]);
+                            }
+                        }
                     }
                 }
             }
@@ -154,7 +179,10 @@ pub fn render_frame_into(
             }
             let av_cy = (h as f32 * 0.22) as i32;
             let av_r  = (h as f32 * 0.15) as i32;
-            draw_gradient_circle(buf, w, h, w as i32 / 2, av_cy, av_r, PINK, wc);
+            match cover {
+                Some(img) => draw_image_cover_circle(buf, w, h, w as i32 / 2, av_cy, av_r, &img.pixels, img.width, img.height),
+                None => draw_gradient_circle(buf, w, h, w as i32 / 2, av_cy, av_r, PINK, wc),
+            }
             draw_circle_ring(buf, w, h, w as i32 / 2, av_cy, av_r, 2, [255, 255, 255], 0.28);
             let bs = (h as f32 * 0.58) as usize;
             for y in bs..h {
@@ -189,7 +217,10 @@ pub fn render_frame_into(
             let av_cx = (w as f32 * 0.12) as i32;
             let av_cy = (h as f32 * 0.50) as i32;
             let av_r  = (h as f32 * 0.14).min(w as f32 * 0.09) as i32;
-            draw_gradient_circle(buf, w, h, av_cx, av_cy, av_r, wc, PINK);
+            match cover {
+                Some(img) => draw_image_cover_circle(buf, w, h, av_cx, av_cy, av_r, &img.pixels, img.width, img.height),
+                None => draw_gradient_circle(buf, w, h, av_cx, av_cy, av_r, wc, PINK),
+            }
             draw_circle_ring(buf, w, h, av_cx, av_cy, av_r, 2, [255, 255, 255], 0.22);
             let divx = (w as f32 * 0.52) as usize;
             for y in (h as f32 * 0.10) as usize..(h as f32 * 0.90) as usize {

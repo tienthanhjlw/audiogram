@@ -31,7 +31,7 @@ use tauri::{AppHandle, Emitter};
 
 use audiogram_core::util::{escape_drawtext, wrap_text_2lines};
 use audiogram_render::{
-    frame::{compute_frame_luts, render_frame_into},
+    frame::{compute_frame_luts, render_frame_into, CoverImage},
     wave::{advance_eq_state, effect_for},
     ProgressSink,
 };
@@ -61,6 +61,43 @@ impl ProgressSink for TauriSink {
             _ => {}
         }
         let _ = self.0.emit("render_event", event);
+    }
+}
+
+// ── EXIF orientation ──────────────────────────────────────────────────────────
+//
+// `image::open` decodes raw sensor pixel data only — it does not rotate/flip
+// per the file's EXIF `Orientation` tag the way browsers (and thus the
+// canvas preview) do. Standard EXIF orientation values 1–8; see
+// https://exiftool.org/TagNames/EXIF.html — 1 (or anything unreadable) means
+// "already upright, no transform needed".
+
+/// Read the EXIF `Orientation` tag from an image file, defaulting to 1
+/// (no transform) if the file has no EXIF data (most PNGs/webp/gif) or
+/// can't be parsed.
+fn read_exif_orientation(path: &Path) -> u32 {
+    let Ok(file) = fs::File::open(path) else { return 1 };
+    let mut reader = BufReader::new(file);
+    let Ok(exif) = exif::Reader::new().read_from_container(&mut reader) else { return 1 };
+    exif.get_field(exif::Tag::Orientation, exif::In::PRIMARY)
+        .and_then(|field| field.value.get_uint(0))
+        .unwrap_or(1)
+}
+
+/// Apply the rotation/flip a given EXIF orientation value calls for, so the
+/// decoded buffer matches what an EXIF-aware viewer (every browser, Preview,
+/// Photos) would display — the same image `<img>`/canvas already shows in
+/// the frontend preview.
+fn apply_exif_orientation(img: image::DynamicImage, orientation: u32) -> image::DynamicImage {
+    match orientation {
+        2 => img.fliph(),
+        3 => img.rotate180(),
+        4 => img.flipv(),
+        5 => img.rotate90().fliph(),
+        6 => img.rotate90(),
+        7 => img.rotate270().fliph(),
+        8 => img.rotate270(),
+        _ => img,
     }
 }
 
@@ -141,6 +178,30 @@ pub fn encode_blocking(
     } else {
         vec![]
     };
+
+    // ── Stage 1c': Cover image decode (avatar/background photo, if any) ──────
+    // Mirrors WaveformCanvas.tsx's coverImgRef: decoded once, reused by every
+    // frame. A missing/corrupt file falls back to the placeholder gradient
+    // (frame.rs) instead of failing the render, same as the frontend's
+    // `img.onerror` behavior. EXIF orientation is applied explicitly — the
+    // `image` crate decodes raw sensor pixel data only, unlike browsers
+    // (which is what made phone photos appear sideways, with the wrong crop
+    // region, only in the exported video and not the canvas preview).
+    let cover_image: Option<CoverImage> = job.cover_image_path.as_deref().and_then(|path| {
+        match image::open(path) {
+            Ok(decoded) => {
+                let decoded = apply_exif_orientation(decoded, read_exif_orientation(Path::new(path)));
+                let rgba = decoded.to_rgba8();
+                let (iw, ih) = rgba.dimensions();
+                emit_log(&app, format!("Cover image: {iw}×{ih}"));
+                Some(CoverImage { pixels: rgba.into_raw(), width: iw, height: ih })
+            }
+            Err(e) => {
+                emit_log(&app, format!("Cover image decode failed, using placeholder: {e}"));
+                None
+            }
+        }
+    });
 
     // ── Stage 1d: Frame LUTs ──────────────────────────────────────────────────
     emit_log(&app, "Building frame LUTs…");
@@ -233,6 +294,7 @@ pub fn encode_blocking(
                         frame, w, h,
                         &job.peaks, job.wave_color, job.wave_style, t_sec, duration,
                         job.layout, eq_snap, &fft_peaks, fft_n_buckets, &luts,
+                        cover_image.as_ref(),
                     );
                 });
 
@@ -332,4 +394,59 @@ fn build_filter_complex(job: &RenderJob, w: usize, h: usize) -> String {
 
     fc.push_str("format=yuv420p[vout]");
     fc
+}
+
+#[cfg(test)]
+mod tests {
+    use super::apply_exif_orientation;
+    use image::{DynamicImage, Rgb, RgbImage};
+
+    /// 2×2 image with a distinct colour in each corner (TL red, TR green,
+    /// BL blue, BR white), so any rotation/flip produces a uniquely
+    /// identifiable pixel arrangement — regression coverage for the bug
+    /// where phone photos appeared sideways (and thus cropped from the
+    /// wrong region) in the exported video despite looking correct in the
+    /// canvas preview: `image::open` doesn't apply EXIF orientation the way
+    /// browsers do, so this transform has to be applied explicitly.
+    fn corner_marked_image() -> DynamicImage {
+        let mut img = RgbImage::new(2, 2);
+        img.put_pixel(0, 0, Rgb([255, 0, 0]));
+        img.put_pixel(1, 0, Rgb([0, 255, 0]));
+        img.put_pixel(0, 1, Rgb([0, 0, 255]));
+        img.put_pixel(1, 1, Rgb([255, 255, 255]));
+        DynamicImage::ImageRgb8(img)
+    }
+
+    #[test]
+    fn exif_orientation_1_or_unknown_is_identity() {
+        let out = apply_exif_orientation(corner_marked_image(), 1).to_rgb8();
+        assert_eq!(out.get_pixel(0, 0).0, [255, 0, 0]);
+        let out = apply_exif_orientation(corner_marked_image(), 99).to_rgb8();
+        assert_eq!(out.get_pixel(0, 0).0, [255, 0, 0], "unrecognized values should also pass through untouched");
+    }
+
+    #[test]
+    fn exif_orientation_6_rotates_90_cw() {
+        let out = apply_exif_orientation(corner_marked_image(), 6).to_rgb8();
+        assert_eq!(out.get_pixel(1, 0).0, [255, 0, 0], "TL should land at TR after 90° CW");
+        assert_eq!(out.get_pixel(1, 1).0, [0, 255, 0], "TR should land at BR after 90° CW");
+    }
+
+    #[test]
+    fn exif_orientation_3_rotates_180() {
+        let out = apply_exif_orientation(corner_marked_image(), 3).to_rgb8();
+        assert_eq!(out.get_pixel(1, 1).0, [255, 0, 0], "TL should land at BR after 180°");
+    }
+
+    #[test]
+    fn exif_orientation_8_rotates_270_cw() {
+        let out = apply_exif_orientation(corner_marked_image(), 8).to_rgb8();
+        assert_eq!(out.get_pixel(0, 1).0, [255, 0, 0], "TL should land at BL after 270° CW");
+    }
+
+    #[test]
+    fn exif_orientation_2_flips_horizontal() {
+        let out = apply_exif_orientation(corner_marked_image(), 2).to_rgb8();
+        assert_eq!(out.get_pixel(1, 0).0, [255, 0, 0], "TL should land at TR after a horizontal flip");
+    }
 }

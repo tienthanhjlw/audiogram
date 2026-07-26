@@ -20,6 +20,10 @@ pub struct RenderJobDto {
     pub font_name:       Option<String>,
     pub layout_template: Option<String>,
     pub output_path:     String,
+    /// Absolute path to the avatar/background image picked in StepLayout —
+    /// mirrors WaveformCanvas.tsx's `coverImagePath`. `None`/empty means no
+    /// image was chosen; the renderer falls back to its placeholder gradient.
+    pub cover_image_path: Option<String>,
 }
 
 /// Validated domain entity — strings parsed to enums, hex colors decoded, defaults applied.
@@ -40,6 +44,7 @@ pub struct RenderJob {
     pub font_name:     String,
     pub layout:        Layout,
     pub output_path:   String,
+    pub cover_image_path: Option<String>,
 }
 
 impl TryFrom<RenderJobDto> for RenderJob {
@@ -75,6 +80,7 @@ impl TryFrom<RenderJobDto> for RenderJob {
             font_name:     dto.font_name.unwrap_or_else(|| "Arial".into()),
             layout,
             output_path:   dto.output_path,
+            cover_image_path: dto.cover_image_path.filter(|p| !p.is_empty()),
         })
     }
 }
