@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import { useAppStore } from './store'
 import StepLayout from './components/StepLayout'
 import StepTranscript from './components/StepTranscript'
@@ -9,23 +8,17 @@ import { Toolbar } from './features/studio/Toolbar'
 import { TransportBar } from './features/transport/TransportBar'
 import { ShortcutsHelpModal } from './app/ShortcutsHelpModal'
 
+// UI_DESIGN_SPEC.md §2.2 — picking/dropping a file jumps straight into
+// Studio Design, no intermediate confirmation step. Both entry points
+// (app/actions.ts's openAudio/importAudioPath) set `screen`/`mode` directly
+// in the same store update, so this component no longer needs a bridging
+// effect to watch audioPath and flip the screen itself (that was P1-T11's
+// temporary seam, removed here per PHASE2_TASKS.md T5 step 3).
 export default function App() {
   const screen          = useAppStore(s => s.screen)
   const step            = useAppStore(s => s.step)
   const mode            = useAppStore(s => s.mode)
-  const audioPath       = useAppStore(s => s.audioPath)
   const isTranscribing  = useAppStore(s => s.isTranscribing)
-  const set             = useAppStore(s => s.set)
-
-  // UI_DESIGN_SPEC.md §2.2 — picking a file jumps straight into Studio, no
-  // intermediate confirmation step. The real StartScreen (Phase 2) will set
-  // this directly; StepUpload (wrapped as-is per T11) still just sets
-  // audioPath, so this effect is the seam that does the screen flip today.
-  useEffect(() => {
-    if (audioPath && screen === 'start') {
-      set({ screen: 'studio', mode: 'design', step: 'layout' })
-    }
-  }, [audioPath, screen, set])
 
   return (
     <>

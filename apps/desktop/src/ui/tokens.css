@@ -79,6 +79,17 @@ body {
   animation: ui-mode-fade-slide 150ms ease-out;
 }
 
+/* Invalid file drop on the Start screen's drop zone — UI_DESIGN_SPEC.md §2.2. */
+@keyframes ui-shake {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-4px); }
+  40%, 60% { transform: translateX(4px); }
+}
+.animate-shake {
+  animation: ui-shake 300ms ease-in-out;
+}
+
 /* Indeterminate progress bar — UI_DESIGN_SPEC.md §9 (30%-wide band, 1.2s). */
 @keyframes ui-progress-indeterminate {
   from { transform: translateX(-100%); }

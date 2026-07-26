@@ -1,23 +1,21 @@
-import StepUpload from '../../components/StepUpload'
+import { DropZone } from './DropZone'
+import { RecentGrid } from './RecentGrid'
 
-// screens/StartScreen.tsx — TEMPORARY per PHASE1_TASKS.md T11: the real
-// drop-zone/recents design (UI_DESIGN_SPEC.md §2) is Phase 2. This just
-// centers the legacy StepUpload on the new dark shell so screen==='start'
-// isn't rendering the old light-mode top bar. App.tsx watches audioPath and
-// flips to screen:'studio' the instant it's set (§2.2's "no confirmation
-// step in between"), so StepUpload's own file-info-card/title-input/Next
-// button are only visible for the one render before that effect fires.
+// screens/StartScreen.tsx — UI_DESIGN_SPEC.md §2 (real drop-zone/recents
+// design, replacing P1-T11's temporary StepUpload wrapper). No settings, no
+// canvas size, no hero marketing (UI_REBUILD_PLAN.md §2.1) — just the drop
+// target and, once there's at least one, the Recents grid.
 export default function StartScreen() {
   return (
     <div className="flex h-screen flex-col bg-bg-app">
-      {/* Minimal drag strip (UI_DESIGN_SPEC.md §2.1) so the window stays
-       * movable before a toolbar exists — the real content below isn't a
-       * drag region. */}
-      <div data-tauri-drag-region className="h-12 flex-shrink-0" />
-      <div className="flex flex-1 items-center justify-center overflow-auto px-6 pb-12">
-        <div className="w-full max-w-[640px]">
-          <StepUpload />
-        </div>
+      {/* Drag strip — UI_DESIGN_SPEC.md §2.1: transparent, small centered
+       * logo text, keeps the window movable before a toolbar exists. */}
+      <div data-tauri-drag-region className="flex h-12 flex-shrink-0 items-center justify-center">
+        <span className="select-none text-[13px] text-text-2">≈ Audiogram</span>
+      </div>
+      <div className="flex flex-1 flex-col items-center gap-10 overflow-auto px-6 pb-12 pt-2">
+        <DropZone />
+        <RecentGrid />
       </div>
     </div>
   )
