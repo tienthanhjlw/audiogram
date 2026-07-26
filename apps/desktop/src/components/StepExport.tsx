@@ -164,7 +164,6 @@ export default function StepExport() {
             { label: 'Title',      value: title || '—' },
             { label: 'Resolution', value: `${w}×${h}` },
             { label: 'Format',     value: canvasSize },
-            { label: 'FPS',        value: `${fps} fps` },
             { label: 'Wave',       value: waveStyle },
           ].map(({ label, value }) => (
             <div key={label} style={{
@@ -177,6 +176,26 @@ export default function StepExport() {
               </span>
             </div>
           ))}
+
+          {/* Frame rate — P2-T12: StepLayout.tsx (deleted this task) was the
+           * only place that could actually change fps, not just display it;
+           * moving that control here (rather than only the read-only
+           * summary row it replaces) keeps the feature reachable until the
+           * real Export sheet (Phase 3) exists. */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid #F3F4F6', fontSize: 13 }}>
+            <span style={{ color: '#6B7280' }}>FPS</span>
+            <div style={{ display: 'flex', gap: 4 }}>
+              {[24, 30, 60].map(f => (
+                <button key={f} onClick={() => useAppStore.setState({ fps: f })} style={{
+                  padding: '3px 8px', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit',
+                  border: `1.5px solid ${fps === f ? '#6C4FF6' : '#E5E7EB'}`,
+                  background: fps === f ? '#EDE9FF' : '#F9FAFB',
+                  fontSize: 11, fontWeight: fps === f ? 600 : 400,
+                  color: fps === f ? '#6C4FF6' : '#374151',
+                }}>{f}</button>
+              ))}
+            </div>
+          </div>
 
           {/* Color swatches */}
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', fontSize: 13 }}>

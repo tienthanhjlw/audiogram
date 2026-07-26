@@ -16,11 +16,10 @@ export interface DesignSlice {
   fontSize: number
   fontName: string
   /** Applies a template's defaults (wave style/color, bg color, karaoke) and
-   * resets zones — same effect as StepLayout.tsx's local
-   * `handleTemplateChange`, exposed on the store so the Design mode template
-   * gallery (Phase 2) can call it without going through that component.
-   * StepLayout.tsx itself is left untouched in Phase 1; it keeps its own
-   * local handler. */
+   * resets zones — originally StepLayout.tsx's local `handleTemplateChange`
+   * (P1-T7 moved it here so the Design mode template gallery could call it
+   * without going through that component; P2-T12 deleted StepLayout.tsx
+   * itself, once DesignPanel.tsx became the only caller). */
   applyTemplate: (id: LayoutTemplate) => void
 }
 

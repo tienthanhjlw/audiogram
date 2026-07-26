@@ -99,6 +99,23 @@ export default tseslint.config(
     },
   },
 
+  // features/ and domain/ are all Phase 2+ code with no legacy call sites to
+  // grandfather in (unlike src/components/Step*.tsx, still on the base
+  // `warn`) — the @tauri-apps/api/core ban is a hard error here
+  // (PHASE2_TASKS.md T12 step 3; full-repo `error` is Phase 3, once the
+  // last two Step components are gone).
+  {
+    files: ['src/features/**/*.{ts,tsx}', 'src/domain/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        paths: [{
+          name: '@tauri-apps/api/core',
+          message: 'Import from core/ipc instead of calling @tauri-apps/api/core directly (TECH_ARCHITECTURE §2.3).',
+        }],
+      }],
+    },
+  },
+
   // __gallery__.tsx is a QA-only route (P1-T4), not a real ui/ primitive —
   // it's allowed to reach into features/ to preview things like the
   // template thumbnails/wave mini previews (P2-T3) that live there.

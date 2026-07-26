@@ -2,102 +2,135 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Repo layout
+
+npm + Cargo workspace monorepo (moved here in Phase 1 T1/T15):
+
+```
+apps/desktop/          — the Tauri app (frontend src/ + src-tauri/)
+packages/               — npm workspace packages
+  contract/             — @audiogram/contract: generated TS constants (see Contract below)
+  wave-effects/         — @audiogram/wave-effects: the 9 waveform draw plugins
+  segments/             — @audiogram/segments: splitSegments/findSilence/ops (split/merge/delete)
+crates/                 — Cargo workspace members
+  audiogram-core/       — entities (Layout, WaveStyle, Segment...), AppError, contract_gen.rs
+  audiogram-spectrum/   — STFT (rustfft) — compute_spectrum(), EQ_BANDS/EQ_BPS
+  audiogram-render/     — pure frame rasterizer — render_frame_into(), wave/effects/*, no Tauri/ffmpeg
+  audiogram-subtitle/   — .srt/.ass writers
+contract/               — constants.json/zones.json + codegen.mjs (single source, generates into both
+                          packages/contract and crates/audiogram-core/src/contract_gen.rs)
+```
+
 ## Commands
 
 ```bash
-# First-time setup
-npm install              # installs JS deps + copies ffmpeg-static to binaries/
+# First-time setup (from repo root)
+npm install              # installs JS deps + copies ffmpeg-static to apps/desktop/src-tauri/binaries/
 npm run setup:whisper    # downloads/builds whisper-cpp binary + ggml-base.bin model
 
-# Development (starts Vite dev server + Tauri window with hot reload)
-npm run tauri dev
+# Development (Vite dev server + Tauri window with hot reload)
+npm run dev
 
-# Production build (produces .dmg / .msi / .AppImage in src-tauri/target/release/bundle/)
-npm run tauri build
+# Production build
+npm run build
 
-# Rust type-check only (much faster than a full build)
-cd src-tauri && cargo check
+# Regenerate contract/*.json → packages/contract + crates/audiogram-core/src/contract_gen.rs
+npm run contract:gen
 
-# TypeScript type-check only
-npx tsc --noEmit
+# Type-check / lint / test the frontend
+npm run typecheck -w audiogram
+npm run lint -w audiogram
+npm run test                # runs every workspace package's tests (apps/desktop + packages/*)
+
+# Rust: type-check / test the whole Cargo workspace
+cargo check --workspace
+cargo test --workspace      # includes crates/audiogram-render/tests/golden_frames.rs (parity guard)
+
+# Full local CI sequence
+npm run ci
 
 # Override bundled FFmpeg during development
-FFMPEG_PATH=/usr/local/bin/ffmpeg npm run tauri dev
+FFMPEG_PATH=/usr/local/bin/ffmpeg npm run dev
 ```
-
-There are no automated tests. Manual verification is via the Tauri dev window.
 
 ## Architecture
 
-### Frontend (React 19 + TypeScript + Tailwind CSS 4)
+### Frontend (`apps/desktop/src/`, React 19 + TypeScript + Tailwind CSS 4)
 
-`App.tsx` owns a single flat `AppState` object and passes it + an `onChange` callback down to each step component. Navigation is linear: Upload → Customize → Transcript → Export.
-
-- `src/types.ts` — all shared types (`AppState`, `Segment`, `WaveStyle`, `LayoutTemplate`, `CanvasSize`) and constants (`LAYOUT_TEMPLATES`, `CANVAS_SIZES`, `WAVE_STYLES`, `WAVE_COLORS`, `BG_COLORS`)
-- `src/components/WaveformCanvas.tsx` — real-time canvas preview. On mount it calls `convertFileSrc` + Web Audio API to decode the audio file, builds a time-resolved amplitude envelope at `WAVE_BPS=120` buckets/second, and also calls `invoke('analyze_spectrum')` in parallel for the EQ style. A `requestAnimationFrame` loop drives the preview; the 6 layout draw functions (`drawSpotify`, `drawSplit`, `drawMinimal`, `drawFullBg`, `drawKaraoke`, `drawBrand`) must mirror Rust's layout geometry exactly.
-- Each `Step*.tsx` component is a self-contained panel that reads `state` and calls `onChange(patch)`.
-
-### Backend (Tauri v2 + Rust)
-
-Domain-driven layout under `src-tauri/src/`:
+Studio workspace shell (UI_REBUILD_PLAN.md), not a wizard: **START** (drop a file) → **STUDIO** (Design mode / Captions mode + Export sheet), never more than two screens.
 
 ```
-lib.rs              — module declarations + Tauri builder wiring
-ffmpeg.rs           — binary resolution (env → PATH → bundle), audio_duration, decode_pcm, to_wav
-types.rs            — RenderParams, Segment (serde Deserialize/Serialize)
-util.rs             — emit_log, ensure_executable, escape_drawtext, wrap_text_2lines, hex_to_rgb, time formatters
-audio/
-  spectrum.rs       — STFT via rustfft: compute_spectrum(), analyze_spectrum command, EQ_BANDS=40, EQ_BPS=30
-video/
-  mod.rs            — render_audiogram command, resolve_ffmpeg_path command, encode_blocking, build_filter_complex
-  frame.rs          — render_frame(): background gradient + vignette + layout dispatch; shared constants
-  wave.rs           — render_wave(): 8 waveform styles; wave_heights() envelope windowing
-  pixel.rs          — RGBA pixel primitives (blend, fill_rect, draw_capsule_bar, fill_circle, etc.)
-transcribe/
-  mod.rs            — transcribe_audio command, whisper_path(), bundled_model(), seed_bundled_model()
-  subtitle.rs       — write_srt command, write_ass command, ass_style(), subtitle_dir()
+app/            — composition root: shortcuts.ts (declarative table), menu.ts (native menu,
+                  shares actions.ts with shortcuts), actions.ts (single action registry)
+core/           — non-UI infrastructure, zero React except where noted
+  ipc/          — client.ts (typed facade over bindings.gen.ts), events.ts, dragDrop.ts
+  audio/        — AudioEngine (singleton, owns the one <audio> element + envelope decode)
+  persistence/  — SessionRepository (session.json/recents.json via @tauri-apps/plugin-fs),
+                  migrations.ts, attach.ts (store↔repository seam)
+  assetUrl.ts   — convertFileSrc wrapper (so features/ never imports @tauri-apps/api directly)
+domain/         — pure TypeScript, zero React/Tauri — audio.ts, format.ts, zones.ts,
+                  preview/renderer.ts (the frame renderer, see Parity below)
+extensions/     — kernel.ts (ExtensionPoint<T> registry) + templates/waves/palettes
+                  registering existing data through one mechanism (TECH_ARCHITECTURE §3.1)
+store/          — zustand, one flat store composed from slices (project/design/captions/
+                  playback/render/ui) — field names never renamed across phases
+features/       — start/ (StartScreen, DropZone, RecentGrid), studio/ (Toolbar, StudioLayout),
+                  design/ (DesignPanel, CanvasStage, DesignInspector — Design mode's 3-pane split),
+                  preview/ (PreviewCanvas, thumbnailer, WaveMiniPreview — shared leaf feature,
+                  every other feature may import it, it imports none), transport/ (TransportBar)
+ui/             — dumb primitives (Button, Select, SwatchRow, Modal, ...) — no store import
+components/     — StepTranscript.tsx, StepExport.tsx: the last two pre-Phase-1 monoliths,
+                  still driving Captions mode and the export step until Phase 3 ports them;
+                  WaveformCanvas.tsx is now a thin adapter over domain/preview/renderer.ts
+```
+
+Import direction is enforced by `eslint.config.js`'s `import/no-restricted-paths`: `ui`/`domain`/`extensions` depend on nothing above them; `core` doesn't depend on `store`/`features`/`app`; `features/*` may not import each other directly (route through the store) except `features/preview`, which every feature may import.
+
+### Backend (Tauri v2 + Rust, `apps/desktop/src-tauri/`)
+
+Clean architecture, dependencies flow inward only:
+
+```
+domain/entities/       — Segment, Layout, WaveStyle, RenderJob, ModelSpec... (thin re-exports of crates/audiogram-core)
+application/           — render.rs, transcribe.rs, model.rs (use-cases)
+infrastructure/
+  ffmpeg/              — resolver, render/mod.rs (spawns ffmpeg, orchestrates audiogram-render)
+  subtitle/, spectrum/, whisper/ — re-export crates/audiogram-{subtitle,spectrum} + model_repo.rs
+presentation/commands/ — the #[tauri::command] boundary (audio, video, transcript, utils)
 ```
 
 ### Preview ↔ Export Parity (critical invariant)
 
-The canvas preview and the Rust renderer must produce identical output. These constants are duplicated and **must stay in sync**:
+The canvas preview and the Rust renderer must produce identical output. Render constants live in **one place**, `contract/constants.json`, generated by `npm run contract:gen` into `packages/contract/src/index.ts` (TS) and `crates/audiogram-core/src/contract_gen.rs` (Rust) — do not hand-edit either generated file or re-declare a constant locally; import `WAVE_BARS`/`BAR_FILL`/`GAP_FILL`/`EQ_BANDS`/`EQ_BPS`/`WAVE_BPS`/`BG_DARK_TOP`/`BG_DARK_BOTTOM`/`SPLIT_BPS` from the generated module instead.
 
-| Constant | Frontend (`WaveformCanvas.tsx`) | Rust (`video/frame.rs`, `video/wave.rs`) |
-|---|---|---|
-| Display bars (non-EQ) | `WAVE_BARS = 64` | `WAVE_BARS: usize = 64` |
-| Bar fill ratio | `BAR_FILL = 0.64` | `BAR_FILL: f32 = 0.64` |
-| Gap fill ratio | `GAP_FILL = 0.36` | `GAP_FILL: f32 = 0.36` |
-| EQ bands | `BARS = 40` (local in eq draw fn) | `EQ_BANDS: usize = 40` (`audio/spectrum.rs`) |
-| Background vignette | 22% dark top → 50% dark bottom | `BG_DARK_TOP=0.22`, `BG_DARK_BOTTOM=0.50` |
+Layout geometry (waveform rect coordinates, avatar center/radius, split column widths) in each of the 6 layout match arms in `crates/audiogram-render/src/frame.rs` must mirror the corresponding draw function in `apps/desktop/src/domain/preview/renderer.ts` (`drawSpotify`/`drawSplit`/`drawMinimal`/`drawFullBg`/`drawKaraoke`/`drawBrand`) exactly. That file — not `WaveformCanvas.tsx`, which is now just a thin prop-adapter around it — is the actual preview-side renderer; `features/preview/PreviewCanvas.tsx` and `features/preview/thumbnailer.ts` both call its one export, `drawFrame()`.
 
-Layout geometry (waveform rect coordinates, avatar center/radius, split column widths) in each of the 6 layout match arms in `video/frame.rs` must mirror the corresponding `draw*` function in `WaveformCanvas.tsx`.
-
-**Golden-frame test (Rust side):** `crates/audiogram-render/tests/golden_frames.rs` renders every (layout × {bar, eq, orb} × t={0%,25%,50%}) combination against fixed deterministic input and byte-compares it to a PNG committed under `crates/audiogram-render/tests/golden/`. Run with `cargo test -p audiogram-render --test golden_frames` (also included in `cargo test --workspace` / CI). **Any change to a render constant (`WAVE_BARS`, `BAR_FILL`, `GAP_FILL`, `BG_DARK_TOP/BOTTOM`, ...) or to layout/waveform geometry in `frame.rs`/`wave/*` will fail this test.** That's expected when the change is intentional — delete the affected golden PNG(s), rerun the test to regenerate them, review the new PNGs by eye (and the diff image written to `target/golden-diffs/` if a mismatch occurs), then commit the updated goldens alongside the code change. Do not delete/regenerate a golden PNG to make a test pass without visually confirming the new frame is correct.
+**Golden-frame test (Rust side):** `crates/audiogram-render/tests/golden_frames.rs` renders every (layout × {bar, eq, orb} × t={0%,25%,50%}) combination against fixed deterministic input and byte-compares it to a PNG committed under `crates/audiogram-render/tests/golden/`. Run with `cargo test -p audiogram-render --test golden_frames` (also included in `cargo test --workspace` / CI). **Any change to a contract constant or to layout/waveform geometry in `frame.rs`/`wave/*` will fail this test** — expected when the change is intentional: delete the affected golden PNG(s), rerun to regenerate them, review the new PNGs by eye (and the diff image written to `target/golden-diffs/` on a mismatch), then commit the updated goldens alongside the code change. This crate draws no text (title/subtitle are ffmpeg `drawtext`/libass, outside `audiogram-render`), so there's no font-rendering source of cross-machine flakiness for it to worry about.
 
 ### EQ Wave Style
 
-The `eq` style has two code paths (both frontend and Rust):
-1. **Real FFT** — `analyze_spectrum` Tauri command decodes audio to 16 kHz mono PCM via FFmpeg, runs STFT (1024-point, Hann window, 40 log-scale bands 60 Hz–7.8 kHz), returns `SpectrumResult { bands: Vec<f32>, n_buckets, n_bands }`. The flat `bands` array is indexed as `bands[t * EQ_BANDS + b]`.
-2. **Fallback simulation** — used when FFT data isn't loaded yet (preview) or decode failed (export). Uses time-stagger (bars read different sample indices, `LAG=2`) + asymmetric EMA (fast attack α=0.40, slow release α=0.045–0.10) to simulate a real spectrum analyzer.
+Two code paths, both frontend (`packages/wave-effects/src/eq.ts`) and Rust (`crates/audiogram-render/src/wave/effects/eq.rs`):
+1. **Real FFT** — `analyze_spectrum` command decodes audio to 16 kHz mono PCM via FFmpeg, runs STFT (1024-point, Hann window, `EQ_BANDS` log-scale bands), returns `SpectrumResult { bands: Vec<f32>, n_buckets, n_bands }`, indexed `bands[t * EQ_BANDS + b]`. The frontend only fetches this when `waveStyle === 'eq'` (gated in `features/preview/useFftSpectrum.ts`, cached by path).
+2. **Fallback simulation** — used when FFT data isn't loaded yet (preview) or decode failed (export). Time-stagger (bars read different sample indices, `LAG=2`) + asymmetric EMA (fast attack α=0.40, slow release α=0.045–0.10) to simulate a real spectrum analyzer.
 
 ### FFmpeg & Whisper Sidecars
 
-Binaries are bundled per-platform in `src-tauri/binaries/` and declared in `tauri.conf.json` under `bundle.externalBin`. The whisper model (`ggml-base.bin`, ~142 MB) lives in `src-tauri/models/` and is copied to `app_data_dir` on first launch by `seed_bundled_model()`.
+Binaries are bundled per-platform in `apps/desktop/src-tauri/binaries/` and declared in `tauri.conf.json` under `bundle.externalBin`. The whisper model (`ggml-base.bin`, ~142 MB) lives in `apps/desktop/src-tauri/models/` and is copied to `app_data_dir` on first launch by `ModelService::seed_bundled`. Model downloads use `reqwest::blocking` streaming (not a `curl` subprocess) for progress.
 
 FFmpeg resolution order at runtime: `FFMPEG_PATH` env var → system `PATH` (+ Homebrew paths on macOS) → executable dir → bundle resources. Binary names may carry a target-triple suffix (e.g. `ffmpeg-aarch64-apple-darwin`) per Tauri sidecar convention.
 
 ### Encoding Pipeline
 
-`render_audiogram` (in `video/mod.rs`):
+`render_audiogram` (`infrastructure/ffmpeg/render/mod.rs`):
 1. Spawns FFmpeg as a child process accepting raw RGBA frames on stdin.
-2. For the `eq` style, pre-computes FFT spectrum (`decode_pcm` → `compute_spectrum`) before the frame loop.
-3. Loops over frames, calling `render_frame()` (pure Rust, no GPU) to produce each `w × h × 4` RGBA buffer, writes to FFmpeg stdin.
-4. FFmpeg encodes H.264 + AAC and writes to a temp `.mp4`, then renames to final output.
-5. Emits `render_progress` (0–100) and `log` events to the frontend throughout.
+2. For the `eq` style, pre-computes the FFT spectrum + a sequential EQ EMA state chain (one snapshot per frame) before the parallel frame loop.
+3. Renders each frame via `audiogram_render::render_frame_into()` (pure Rust, no GPU, rayon-parallel across a batch) into a `w × h × 4` RGBA buffer, writes it to FFmpeg stdin in order.
+4. FFmpeg encodes H.264 + AAC to a temp `.mp4`, then renames to the final output.
+5. Emits both the legacy `render_progress`/`log` events and a structured `render_event` (`Stage`/`Progress`/`Log`/`Failed`/`Done`) that the frontend's `render.slice` consumes for stage/ETA/frame-count UI. `cancel_render` flips an `AtomicBool` checked once per batch.
 
 ### Adding a New Tauri Command
 
-1. Implement the function with `#[tauri::command]` in the appropriate domain module.
-2. Add `pub use` or re-export via `mod.rs` if needed.
-3. Register it in `lib.rs` → `tauri::generate_handler![..., your_command]`.
-4. Call from frontend via `invoke('your_command', { params })`.
+1. Implement the function with `#[tauri::command]` `#[specta::specta]` in the appropriate `presentation/commands/*.rs` module.
+2. Register it in `lib.rs`'s `specta_builder`/`invoke_handler`.
+3. Run the app once (or `cargo run`) to regenerate `apps/desktop/src/core/ipc/bindings.gen.ts`.
+4. Add a wrapper in `apps/desktop/src/core/ipc/client.ts`'s `ipc` object — components call `ipc.yourCommand(...)`, never `bindings.gen.ts` or `@tauri-apps/api/core` directly.
