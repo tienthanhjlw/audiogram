@@ -64,6 +64,10 @@ function seekBy(dt: number): void {
   audioEngine.seekBy(dt)
 }
 
+function seekToStart(): void {
+  audioEngine.seek(0)
+}
+
 function openShortcutsHelp(): void {
   useAppStore.getState().set({ shortcutsHelpOpen: true })
 }
@@ -78,5 +82,8 @@ export const actions = {
   togglePlayback,
   seekBackward: () => seekBy(-5),
   seekForward: () => seekBy(5),
+  seekBackwardSmall: () => seekBy(-1),
+  seekForwardSmall: () => seekBy(1),
+  seekToStart,
   openShortcutsHelp,
 }

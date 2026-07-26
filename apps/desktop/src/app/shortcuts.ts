@@ -8,6 +8,8 @@ export interface ShortcutEntry {
   key: string
   /** Requires the platform modifier (Cmd on macOS, Ctrl elsewhere). */
   mod?: boolean
+  /** Requires Shift — e.g. ⇧←/→ for a 1s (vs. the plain 5s) seek step. */
+  shift?: boolean
   /** Guards against firing while the user is typing in a field. */
   when?: 'notTyping'
   /** Tauri accelerator syntax — only set for the entries also bound in the
@@ -29,14 +31,22 @@ export const SHORTCUTS: ShortcutEntry[] = [
   { id: 'togglePlayback', label: 'Play / Pause', key: ' ', when: 'notTyping', run: actions.togglePlayback },
   { id: 'seekBackward', label: 'Seek back 5s', key: 'ArrowLeft', when: 'notTyping', run: actions.seekBackward },
   { id: 'seekForward', label: 'Seek forward 5s', key: 'ArrowRight', when: 'notTyping', run: actions.seekForward },
+  { id: 'seekBackwardSmall', label: 'Seek back 1s', key: 'ArrowLeft', shift: true, when: 'notTyping', run: actions.seekBackwardSmall },
+  { id: 'seekForwardSmall', label: 'Seek forward 1s', key: 'ArrowRight', shift: true, when: 'notTyping', run: actions.seekForwardSmall },
+  { id: 'seekToStart', label: 'Seek to start', key: 'Home', when: 'notTyping', run: actions.seekToStart },
 ]
 
 /** Human-readable combo for the Help modal, computed per-platform from the
  * same entry menu.ts turns into an accelerator string. */
 export function shortcutDisplay(s: ShortcutEntry): string {
   const modPart = s.mod ? (isMac ? '⌘' : 'Ctrl+') : ''
-  const keyPart = s.key === ' ' ? 'Space' : s.key === 'ArrowLeft' ? '←' : s.key === 'ArrowRight' ? '→' : s.key.toUpperCase()
-  return `${modPart}${keyPart}`
+  const shiftPart = s.shift ? '⇧' : ''
+  const keyPart = s.key === ' ' ? 'Space'
+    : s.key === 'ArrowLeft' ? '←'
+    : s.key === 'ArrowRight' ? '→'
+    : s.key === 'Home' ? 'Home'
+    : s.key.toUpperCase()
+  return `${modPart}${shiftPart}${keyPart}`
 }
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -49,7 +59,8 @@ function matchesKey(e: KeyboardEvent, s: ShortcutEntry): boolean {
   if (e.key.toLowerCase() !== s.key.toLowerCase()) return false
   const hasMod = isMac ? e.metaKey : e.ctrlKey
   if (!!s.mod !== hasMod) return false
-  return !e.altKey && !e.shiftKey
+  if (!!s.shift !== e.shiftKey) return false
+  return !e.altKey
 }
 
 /** One global keydown listener for the whole app, registered once from
