@@ -63,10 +63,15 @@ export default tseslint.config(
             from: ['./src/store/**/*', './src/features/**/*', './src/app/**/*'],
             message: 'extensions/ (TECH_ARCHITECTURE §3.1 "Cấp 0") sits below store — it must not depend on store, features, or app.',
           },
+          // `preview` is a shared leaf feature (PHASE2_TASKS.md T2 step 4):
+          // it renders the canvas every other feature needs to show
+          // (galleries, canvas stage, thumbnails, export preview), and it
+          // imports no feature itself — so every feature may import it, the
+          // one exception to the "no cross-feature import" rule below.
           ...FEATURES.map(f => ({
             target: `./src/features/${f}/**/*`,
-            from: FEATURES.filter(x => x !== f).map(x => `./src/features/${x}/**/*`),
-            message: `features/${f} must not import another feature directly — route shared state through the store.`,
+            from: FEATURES.filter(x => x !== f && x !== 'preview').map(x => `./src/features/${x}/**/*`),
+            message: `features/${f} must not import another feature directly (except features/preview) — route shared state through the store.`,
           })),
         ],
       }],
