@@ -11,7 +11,17 @@ type Store = typeof useAppStore
  * function. */
 export function attachAudioEngine(store: Store): () => void {
   const untick = audioEngine.onTick(tick => {
-    store.getState()._setFromEngine(tick)
+    // `tick.duration` comes from `<audio>.duration`, which reads NaN (->0
+    // from AudioEngine) until the element's own metadata has loaded — a
+    // load in progress can fire a tick in that window (confirmed via a
+    // native 'pause' event landing a couple ms after a fresh `load()`,
+    // during manual testing). `load()`'s resolved envelope is the
+    // authoritative duration and is written below; forwarding a 0/NaN tick
+    // duration here would silently clobber it back to 0. Once the element's
+    // metadata genuinely loads, its duration should agree with the decoded
+    // one anyway, so just don't forward untrustworthy values.
+    const { currentTime, playing, duration } = tick
+    store.getState()._setFromEngine(duration > 0 ? { currentTime, playing, duration } : { currentTime, playing })
   })
 
   const unsubscribeStore = store.subscribe((state, prev) => {

@@ -6,6 +6,7 @@ import StepExport from './components/StepExport'
 import StartScreen from './features/start/StartScreen'
 import { StudioLayout } from './features/studio/StudioLayout'
 import { Toolbar } from './features/studio/Toolbar'
+import { TransportBar } from './features/transport/TransportBar'
 
 export default function App() {
   const screen          = useAppStore(s => s.screen)
@@ -36,7 +37,7 @@ export default function App() {
       {screen === 'start' ? (
         <StartScreen />
       ) : (
-        <StudioLayout toolbar={<Toolbar />}>
+        <StudioLayout toolbar={<Toolbar />} transport={<TransportBar />}>
           <div key={step === 'export' ? 'export' : mode} className="animate-mode-fade-slide h-full">
             {step === 'export' ? <StepExport /> : mode === 'design' ? <StepLayout /> : <StepTranscript />}
           </div>
