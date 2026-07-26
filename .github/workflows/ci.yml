@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, design-dark]
+
+jobs:
+  frontend:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run contract:gen
+      - run: npm run typecheck -w audiogram
+      - run: npm run lint -w audiogram
+      - run: npm run test
+
+  rust:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # Rust output (contract_gen.rs) is committed, not build-time generated,
+      # but the frontend job's `contract:gen` is the source of truth for
+      # both sides staying in sync — this job checks the Rust output as
+      # committed, same as a contributor who forgot to regenerate would see
+      # locally.
+      - run: cargo check --workspace
+      - run: cargo test --workspace
+
+  # NOTE: `tauri build` is intentionally not run in Phase 1 CI — it's slow
+  # and needs the ffmpeg/whisper-cpp sidecar binaries set up (setup:whisper,
+  # setup:bundle). TODO(Phase 3): add a build job once those are wired for CI.

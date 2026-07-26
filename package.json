@@ -14,6 +14,7 @@
     "fetch:ffmpeg": "node scripts/copy-ffmpeg.mjs",
     "setup:whisper": "bash scripts/setup-whisper.sh",
     "setup:bundle": "bash scripts/setup-whisper.sh && node scripts/copy-ffmpeg.mjs",
-    "postinstall": "node scripts/copy-ffmpeg.mjs || true"
+    "postinstall": "node scripts/copy-ffmpeg.mjs || true",
+    "ci": "npm ci && npm run contract:gen && npm run typecheck -w audiogram && npm run lint -w audiogram && npm run test && cargo check --workspace && cargo test --workspace"
   }
 }
