@@ -10,6 +10,8 @@ import { attachAudioEngine } from './core/audio/bootstrap'
 import { attachShortcuts } from './app/shortcuts'
 import { buildAppMenu } from './app/menu'
 import { registerBuiltins } from './extensions'
+import { attachSessionPersistence } from './core/persistence/attach'
+import { renderProjectThumb } from './features/preview/thumbnailer'
 
 // Temporary visual QA route for the ui/ primitives (T4/T5) — not part of
 // the app's real navigation, removed once features/ has its own screens.
@@ -29,6 +31,11 @@ attachIpcEvents(useAppStore)
 // file once and owns the single <audio> element; this wires its ticks into
 // playback.slice (TECH_ARCHITECTURE §2.6).
 attachAudioEngine(useAppStore)
+
+// Debounced session.json + recents.json writer (T4) — auto-restore on
+// launch is Phase 4 (UI_REBUILD_PLAN.md §4.4); this just keeps both files
+// current so START's Recents grid (P2-T5) has something to read.
+attachSessionPersistence(useAppStore, renderProjectThumb)
 
 // One global keydown listener (T13) — same one-subscription pattern as
 // above, guarded per-entry against typing in a field (shortcuts.ts).
