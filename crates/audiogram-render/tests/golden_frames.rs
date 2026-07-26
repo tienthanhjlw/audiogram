@@ -2,15 +2,18 @@
 //! of Phase 2's preview renderer rewrite so a drift in layout geometry or
 //! waveform math has something other than eyeballs to be caught by).
 //!
-//! Renders every (layout × representative wave style × t) combination at a
-//! fixed, deterministic input (canvas size, colors, peaks, EQ state chain)
-//! and byte-compares the RGBA buffer against a PNG committed under
-//! `tests/golden/`. This crate draws no text (title/subtitle burn-in are
-//! ffmpeg drawtext/libass, outside `audiogram-render` — see
-//! OPTIMIZATION_PLAN.md F1), so there is no font-rendering source of
-//! cross-machine flakiness here: every pixel comes from fills, blends, and
-//! analytic circle/gradient math, so an exact byte match is expected to
-//! reproduce identically on any platform.
+//! Renders every (layout × wave style × t) combination — all 6 layouts × all
+//! 9 wave styles × 3 times (widened from an initial 3-style subset,
+//! bar/eq/orb, to the full set in PHASE3_TASKS.md T1, ahead of Phase 3
+//! touching frame.rs/wave/* for real) — at a fixed, deterministic input
+//! (canvas size, colors, peaks, EQ state chain) and byte-compares the RGBA
+//! buffer against a PNG committed under `tests/golden/`. This crate draws no
+//! text (title/subtitle burn-in are ffmpeg drawtext/libass, outside
+//! `audiogram-render` — see OPTIMIZATION_PLAN.md F1; Phase 3 T4 moves title
+//! rendering into this crate, at which point this file gains a font-based
+//! source of cross-machine flakiness it doesn't have yet), so today every
+//! pixel comes from fills, blends, and analytic circle/gradient math — an
+//! exact byte match is expected to reproduce identically on any platform.
 //!
 //! **First run / intentional geometry change:** delete the golden PNG(s)
 //! that should change (or the whole `tests/golden/` dir to reseed
@@ -46,14 +49,20 @@ const LAYOUTS: [(Layout, &str); 6] = [
     (Layout::Brand, "brand"),
 ];
 
-// 3 representative styles rather than all 9 (OPTIMIZATION_PLAN.md 1.1):
-// Bar (the plain/most common path), Eq (the only style with a sequential
-// cross-frame state chain — advance_eq_state), Orb (a distinct circular
-// geometry, unlike Bar/Eq's rectangular bars).
-const STYLES: [(WaveStyle, &str); 3] = [
+// All 9 wave styles (PHASE3_TASKS.md T1 — widened from the original 3-style
+// subset, bar/eq/orb, chosen in OPTIMIZATION_PLAN.md 1.1 as representative
+// of the plain/stateful/circular code paths respectively; the other 6 had
+// never been golden-tested at all before this task).
+const STYLES: [(WaveStyle, &str); 9] = [
     (WaveStyle::Bar, "bar"),
-    (WaveStyle::Eq, "eq"),
+    (WaveStyle::Line, "line"),
+    (WaveStyle::Mirror, "mirror"),
+    (WaveStyle::Dot, "dot"),
+    (WaveStyle::Neon, "neon"),
     (WaveStyle::Orb, "orb"),
+    (WaveStyle::Pulse, "pulse"),
+    (WaveStyle::Eq, "eq"),
+    (WaveStyle::Player, "player"),
 ];
 
 const TIME_FRACTIONS: [(f64, &str); 3] = [(0.0, "t0"), (0.25, "t25"), (0.5, "t50")];
