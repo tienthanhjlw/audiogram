@@ -218,7 +218,9 @@ name = "audiogram"
 version = "0.1.0"
 dependencies = [
  "audiogram-core",
+ "audiogram-render",
  "audiogram-spectrum",
+ "audiogram-subtitle",
  "hound",
  "rayon",
  "rubato",
@@ -244,12 +246,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "audiogram-render"
+version = "0.0.0"
+dependencies = [
+ "audiogram-core",
+ "audiogram-spectrum",
+]
+
+[[package]]
 name = "audiogram-spectrum"
 version = "0.0.0"
 dependencies = [
+ "audiogram-core",
  "rustfft",
  "serde",
  "specta",
+]
+
+[[package]]
+name = "audiogram-subtitle"
+version = "0.0.0"
+dependencies = [
+ "audiogram-core",
 ]
 
 [[package]]

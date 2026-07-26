@@ -1,9 +1,6 @@
 use std::{fs, path::PathBuf};
 use audiogram_core::util::{format_srt_time, wrap_srt_line};
-use crate::{
-    domain::entities::Segment,
-    shared::AppError,
-};
+use audiogram_core::{entities::Segment, AppError};
 
 pub struct SrtWriter;
 

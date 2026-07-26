@@ -12,10 +12,12 @@
 ///
 ///   Stage 3 — Stream write  (sequential, I/O-bound)
 ///     • frames written to FFmpeg stdin in order while FFmpeg encodes concurrently
-pub mod frame;
-pub mod pixel;
-pub mod wave;
-
+///
+/// The pure rasterizer (frame/wave/pixel) lives in the `audiogram-render`
+/// crate (T16) — this module owns everything Tauri/ffmpeg-process-specific:
+/// spawning/managing the ffmpeg subprocess and reporting progress through a
+/// `TauriSink` (below) instead of scattering raw `AppHandle::emit` calls
+/// through the render loop.
 use std::{
     fs,
     io::{BufRead, BufReader, Write},
@@ -28,6 +30,11 @@ use rayon::prelude::*;
 use tauri::{AppHandle, Emitter};
 
 use audiogram_core::util::{escape_drawtext, wrap_text_2lines};
+use audiogram_render::{
+    frame::{compute_frame_luts, render_frame_into},
+    wave::{advance_eq_state, effect_for},
+    ProgressSink,
+};
 use crate::{
     domain::entities::{Layout, RenderEvent, RenderJob, RenderStage, SerializableError},
     infrastructure::{
@@ -37,13 +44,24 @@ use crate::{
     shared::{util::emit_log, AppError},
 };
 
-use self::{
-    frame::{compute_frame_luts, render_frame_into},
-    wave::{advance_eq_state, effect_for},
-};
+/// Fans every `RenderEvent` out to the structured `render_event` channel
+/// (TECH_ARCHITECTURE.md §2.3) and, for the 2 variants the pre-T16 pipeline
+/// already put on a legacy channel, to `render_progress` too (T9 compat —
+/// `emit_log`'s plain "log" channel is untouched below; `RenderEvent::Log`
+/// was never emitted by this pipeline before T16 and still isn't, so this
+/// doesn't create a duplicate "log" line for the same message).
+#[derive(Clone)]
+struct TauriSink(AppHandle);
 
-fn emit_stage(app: &AppHandle, stage: RenderStage) {
-    let _ = app.emit("render_event", RenderEvent::Stage { stage });
+impl ProgressSink for TauriSink {
+    fn emit(&self, event: RenderEvent) {
+        match &event {
+            RenderEvent::Progress { pct, .. } => { let _ = self.0.emit("render_progress", *pct as u8); }
+            RenderEvent::Done { .. } => { let _ = self.0.emit("render_progress", 100u8); }
+            _ => {}
+        }
+        let _ = self.0.emit("render_event", event);
+    }
 }
 
 /// Encode a `RenderJob` to MP4 on the current thread.
@@ -59,8 +77,9 @@ pub fn encode_blocking(
     job: RenderJob,
     cancel: Arc<AtomicBool>,
 ) -> Result<PathBuf, AppError> {
+    let sink = TauriSink(app.clone());
     emit_log(&app, format!("FFmpeg: {}", ffmpeg.display()));
-    emit_stage(&app, RenderStage::Preparing);
+    sink.emit(RenderEvent::Stage { stage: RenderStage::Preparing });
 
     // ── Stage 1a: Audio metadata ──────────────────────────────────────────────
     let duration = audio_duration(&ffmpeg, &job.audio_path);
@@ -76,7 +95,7 @@ pub fn encode_blocking(
     // command before this job started — this stage just marks "burning
     // captions into the video" as a conceptual step for the UI's benefit.
     if job.captions_path.is_some() {
-        emit_stage(&app, RenderStage::Captions);
+        sink.emit(RenderEvent::Stage { stage: RenderStage::Captions });
     }
 
     let w = job.width  as usize;
@@ -160,7 +179,7 @@ pub fn encode_blocking(
         });
     }
 
-    emit_stage(&app, RenderStage::Frames);
+    sink.emit(RenderEvent::Stage { stage: RenderStage::Frames });
 
     // ── Stage 2 + 3: Parallel render → sequential stream write ───────────────
     //
@@ -190,7 +209,7 @@ pub fn encode_blocking(
                 let _ = child.kill();
                 let _ = child.wait();
                 let _ = fs::remove_file(&tmp_out);
-                let _ = app.emit("render_event", RenderEvent::Failed {
+                sink.emit(RenderEvent::Failed {
                     error: SerializableError { kind: "cancelled".into(), message: "Cancelled".into() },
                 });
                 return Err(AppError::Cancelled);
@@ -225,8 +244,7 @@ pub fn encode_blocking(
                     .map_err(|e| AppError::Encode(format!("write frame {fi}: {e}")))?;
                 if fi % progress_step == 0 {
                     let pct = ((fi + 1) * 99 / total_frames) as u8;
-                    let _ = app.emit("render_progress", pct);
-                    let _ = app.emit("render_event", RenderEvent::Progress {
+                    sink.emit(RenderEvent::Progress {
                         pct: pct as f32,
                         frame: (fi + 1) as u32,
                         total: total_frames as u32,
@@ -236,7 +254,7 @@ pub fn encode_blocking(
         }
     } // stdin dropped here → EOF to FFmpeg
 
-    emit_stage(&app, RenderStage::Encoding);
+    sink.emit(RenderEvent::Stage { stage: RenderStage::Encoding });
 
     let status = child.wait()
         .map_err(|e| AppError::Encode(format!("ffmpeg wait: {e}")))?;
@@ -251,8 +269,7 @@ pub fn encode_blocking(
     }
 
     let output = final_out.to_string_lossy().to_string();
-    let _ = app.emit("render_progress", 100u8);
-    let _ = app.emit("render_event", RenderEvent::Done { output: output.clone() });
+    sink.emit(RenderEvent::Done { output: output.clone() });
     emit_log(&app, "Done!");
     Ok(final_out)
 }

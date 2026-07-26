@@ -1,6 +1,6 @@
 //! `player` — media player style: amplitude texture + progress fill + play triangle.
 //! Parity: src/waves/player.ts
-use crate::infrastructure::ffmpeg::render::{
+use crate::{
     frame::{BAR_FILL, GAP_FILL, WAVE_BARS},
     pixel::{blend, fill_rect},
     wave::{WaveCtx, WaveEffect},

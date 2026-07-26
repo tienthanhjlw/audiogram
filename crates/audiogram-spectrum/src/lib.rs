@@ -14,13 +14,11 @@ use specta::Type;
 use std::f32::consts::PI;
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-// TEMPORARY duplication of contract/constants.json's EQ_BANDS/EQ_BPS (T14) —
-// this crate can't depend on the app crate's contract_gen.rs (that would be a
-// dependency cycle: app depends on this crate). T16 moves contract_gen.rs into
-// audiogram-core, which this crate can then depend on to remove the
-// duplication for real.
-pub const EQ_BANDS: usize = 40;
-pub const EQ_BPS: u32 = 30;
+// Sourced from contract/constants.json via audiogram-core's contract_gen.rs
+// (T16 moved contract_gen.rs there specifically so this crate and
+// audiogram-render/audiogram-subtitle could all depend on it, closing the
+// temporary duplication T15 introduced here).
+pub use audiogram_core::contract_gen::{EQ_BANDS, EQ_BPS};
 
 /// Sample rate used for PCM decode. 16 kHz covers all speech + music up to 8 kHz.
 pub const SAMPLE_RATE: u32 = 16_000;

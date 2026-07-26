@@ -1,6 +1,6 @@
 /// Shared waveform helpers used by effects and the render pipeline.
-use super::super::frame::WAVE_BARS;
-use crate::infrastructure::spectrum::rustfft::EQ_BANDS;
+use crate::frame::WAVE_BARS;
+use audiogram_spectrum::EQ_BANDS;
 
 /// Window `WAVE_BARS` amplitude buckets centred on `t_sec`.
 /// Bar `WAVE_BARS/2` = now; left = past; right = future.

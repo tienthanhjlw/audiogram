@@ -1,6 +1,6 @@
 //! `mirror` — symmetric capsule bars mirrored around the centre line.
 //! Parity: src/waves/mirror.ts
-use crate::infrastructure::ffmpeg::render::{
+use crate::{
     frame::{BAR_FILL, GAP_FILL, WAVE_BARS},
     pixel::draw_capsule_bar,
     wave::{WaveCtx, WaveEffect},

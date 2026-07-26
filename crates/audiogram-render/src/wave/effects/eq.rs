@@ -1,12 +1,12 @@
 //! `eq` — spectrum analyser bars. Reads the pre-computed EMA snapshot
 //! (advanced sequentially by `advance_eq_state` before parallel render).
 //! Parity: src/waves/eq.ts
-use crate::infrastructure::ffmpeg::render::{
+use crate::{
     frame::{BAR_FILL, GAP_FILL},
     pixel::draw_capsule_bar,
     wave::{WaveCtx, WaveEffect},
 };
-use crate::infrastructure::spectrum::rustfft::EQ_BANDS;
+use audiogram_spectrum::EQ_BANDS;
 
 pub struct EqEffect;
 

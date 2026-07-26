@@ -1,0 +1,59 @@
+//! Pure CPU rasterizer — background/vignette + layout + waveform into one RGBA
+//! buffer per frame. No Tauri, no ffmpeg process, no I/O (PACKAGE_SPLIT_PLAN.md
+//! §3.1). Spawning/managing the ffmpeg subprocess (`encode_blocking`, the
+//! resolver) stays in the app crate, which calls [`frame::render_frame_into`]
+//! per frame and reports progress through [`progress::ProgressSink`] instead
+//! of an `AppHandle` directly.
+pub mod frame;
+pub mod pixel;
+pub mod progress;
+pub mod wave;
+
+pub use progress::{NullSink, ProgressSink};
+
+#[cfg(test)]
+mod tests {
+    use super::frame::{compute_frame_luts, render_frame_into};
+    use audiogram_core::entities::{Layout, WaveStyle};
+
+    /// PACKAGE_SPLIT_PLAN.md §3.1 / PHASE1_TASKS.md T16's acceptance test for
+    /// this crate: render exactly one frame with minimal params and check the
+    /// buffer is the right size, doesn't panic, and actually drew something
+    /// (a centre pixel differs from the plain background) — runnable with
+    /// `cargo test -p audiogram-render`, no Tauri/ffmpeg/webview needed.
+    #[test]
+    fn renders_one_frame() {
+        let (w, h) = (320usize, 180usize);
+        let bg_color = [0x11, 0x18, 0x27];
+        let wave_color = [0xFF, 0xFF, 0xFF];
+        let peaks = vec![0.5f32; 1200];
+
+        let luts = compute_frame_luts(w, h, bg_color, Layout::Minimal);
+        let mut buf = vec![0u8; w * h * 4];
+
+        render_frame_into(
+            &mut buf, w, h,
+            &peaks, wave_color, WaveStyle::Bar,
+            0.0, 10.0,
+            Layout::Minimal,
+            &[], &[], 0,
+            &luts,
+        );
+
+        assert_eq!(buf.len(), w * h * 4);
+
+        // Top-left corner is pure background (Minimal's waveform band sits at
+        // y ∈ [0.30h, 0.66h], well below row 0).
+        let bg_pixel = &buf[0..3];
+
+        // Middle of the frame should land inside the waveform band and
+        // actually have something drawn (bar effect fills opaque white/bg
+        // gradient over the background there).
+        let mid_x = w / 2;
+        let mid_y = (h as f32 * 0.30 + (h as f32 * 0.36) / 2.0) as usize; // Minimal's waveform zone centre
+        let mid_idx = (mid_y * w + mid_x) * 4;
+        let mid_pixel = &buf[mid_idx..mid_idx + 3];
+
+        assert_ne!(bg_pixel, mid_pixel, "expected the waveform to draw something distinct from the background");
+    }
+}

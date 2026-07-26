@@ -19,7 +19,9 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 audiogram-core = { path = "../../../crates/audiogram-core" }
+audiogram-render = { path = "../../../crates/audiogram-render" }
 audiogram-spectrum = { path = "../../../crates/audiogram-spectrum" }
+audiogram-subtitle = { path = "../../../crates/audiogram-subtitle" }
 tauri = { version = "2", features = ["protocol-asset"] }
 tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2"

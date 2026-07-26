@@ -1,10 +1,8 @@
 [package]
-name = "audiogram-spectrum"
+name = "audiogram-render"
 version = "0.0.0"
 edition = "2021"
 
 [dependencies]
 audiogram-core = { path = "../audiogram-core" }
-rustfft = "6"
-serde = { workspace = true }
-specta = { workspace = true }
+audiogram-spectrum = { path = "../audiogram-spectrum" }

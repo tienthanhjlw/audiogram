@@ -1,7 +1,7 @@
 //! `orb` — radial visualiser: bars radiate from a centre ring.
 //! Parity: src/waves/orb.ts
 use std::f32::consts::PI;
-use crate::infrastructure::ffmpeg::render::{
+use crate::{
     frame::{BAR_FILL, WAVE_BARS},
     pixel::{draw_circle_ring, fill_circle},
     wave::{WaveCtx, WaveEffect},

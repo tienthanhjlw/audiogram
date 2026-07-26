@@ -12,8 +12,8 @@ pub mod effects;
 
 pub use support::{advance_eq_state, wave_heights};
 
-use super::frame::WAVE_BARS;
-use crate::domain::entities::WaveStyle;
+use crate::frame::WAVE_BARS;
+use audiogram_core::entities::WaveStyle;
 
 /// Everything an effect needs to draw one frame's waveform.
 /// Built once per frame by [`render_wave`] and passed to the selected effect.

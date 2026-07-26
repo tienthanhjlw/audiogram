@@ -1,6 +1,6 @@
 //! `neon` — glowing bars: soft halo + body + bright core.
 //! Parity: src/waves/neon.ts
-use crate::infrastructure::ffmpeg::render::{
+use crate::{
     frame::{BAR_FILL, GAP_FILL, WAVE_BARS},
     pixel::blend,
     wave::{WaveCtx, WaveEffect},

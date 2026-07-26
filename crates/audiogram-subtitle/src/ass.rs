@@ -1,10 +1,7 @@
 use std::{fs, path::PathBuf};
 use audiogram_core::util::{format_ass_time, hex_to_rgb};
-use crate::{
-    domain::entities::Segment,
-    shared::AppError,
-};
-use super::srt::subtitle_dir;
+use audiogram_core::{entities::Segment, AppError};
+use crate::srt::subtitle_dir;
 
 pub struct AssWriter;
 
@@ -152,5 +149,43 @@ pub fn ass_style(
         "spotify" => (box_style(sub_fs as u32, 2, mv(0.85)), 0, 0),
         "fullbg"  => (box_style(sub_fs as u32, 2, mv(0.83)), 0, 0),
         _         => (box_style(sub_fs as u32, 2, mv(0.74)), 0, 0),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// PHASE1_TASKS.md T16's acceptance test: a 2-segment karaoke build
+    /// should contain `\kf` tags (karaoke fill duration in centiseconds,
+    /// this crate's syntax for the classic `\k` tag family) in the same
+    /// left-to-right order as the segments/words they came from.
+    #[test]
+    fn karaoke_ass_has_kf_tags_in_order() {
+        let segments = vec![
+            Segment { id: 0, start: 0.0, end: 1.0, text: "hello world".into() },
+            Segment { id: 1, start: 1.0, end: 2.5, text: "second segment here".into() },
+        ];
+
+        let path = AssWriter::write(
+            &segments, "#FFD60A",
+            Some(1080), Some(1080), Some(100),
+            Some("minimal"), Some(true), Some("Arial"),
+            None, None,
+        ).unwrap();
+
+        let contents = fs::read_to_string(&path).unwrap();
+        let _ = fs::remove_file(&path);
+
+        let kf_positions: Vec<usize> = contents.match_indices("{\\kf").map(|(i, _)| i).collect();
+        // hello, world, second, segment, here = 5 words = 5 \kf tags
+        assert_eq!(kf_positions.len(), 5, "expected one \\kf tag per word:\n{contents}");
+        assert!(kf_positions.windows(2).all(|w| w[0] < w[1]), "\\kf tags out of order");
+
+        // Segment 1's words ("second segment here") must all appear after
+        // segment 0's last word ("world") in the file.
+        let world_pos = contents.find("world").unwrap();
+        let second_pos = contents.find("second").unwrap();
+        assert!(world_pos < second_pos, "segment order not preserved");
     }
 }

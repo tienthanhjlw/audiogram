@@ -1,6 +1,6 @@
 //! `line` — connected amplitude polyline.
 //! Parity: src/waves/line.ts
-use crate::infrastructure::ffmpeg::render::{
+use crate::{
     frame::WAVE_BARS,
     pixel::draw_thick_line,
     wave::{WaveCtx, WaveEffect},

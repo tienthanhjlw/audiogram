@@ -1,6 +1,6 @@
 //! `dot` — vertical dot-matrix columns, fading from centre.
 //! Parity: src/waves/dot.ts
-use crate::infrastructure::ffmpeg::render::{
+use crate::{
     frame::{BAR_FILL, GAP_FILL, WAVE_BARS},
     pixel::fill_circle,
     wave::{WaveCtx, WaveEffect},

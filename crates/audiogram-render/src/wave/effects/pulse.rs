@@ -1,7 +1,7 @@
 //! `pulse` — bell-windowed bars (centre emphasised, edges tapered).
 //! Parity: src/waves/pulse.ts
 use std::f32::consts::PI;
-use crate::infrastructure::ffmpeg::render::{
+use crate::{
     frame::{BAR_FILL, GAP_FILL},
     pixel::draw_capsule_bar,
     wave::{WaveCtx, WaveEffect},
