@@ -6,6 +6,29 @@ import { useAppStore } from '../store'
 import { ipc } from '../core/ipc/client'
 import type { AppError } from '../core/errors'
 
+// OPTIMIZATION_PLAN.md F3 — stage/progressPct/frame/totalFrames/etaSeconds
+// and ipc.cancelRender() were built in Phase 1 (T9) but had no UI consumer
+// yet. This is the cheapest place to wire them in ahead of the real Export
+// sheet (Phase 3) rather than let paid-for backend work sit unused.
+const STAGE_LABELS: Record<string, string> = {
+  idle: '',
+  preparing: 'Preparing…',
+  captions: 'Rendering captions…',
+  frames: 'Rendering frames…',
+  encoding: 'Encoding…',
+  done: 'Done',
+  failed: 'Failed',
+}
+
+function formatEta(seconds: number | null): string | null {
+  if (seconds === null || !Number.isFinite(seconds) || seconds < 0) return null
+  const s = Math.round(seconds)
+  if (s < 60) return `~${s}s left`
+  const m = Math.floor(s / 60)
+  const rem = s % 60
+  return `~${m}m ${rem}s left`
+}
+
 export default function StepExport() {
   const audioPath      = useAppStore(s => s.audioPath)
   const audioName      = useAppStore(s => s.audioName)
@@ -31,7 +54,11 @@ export default function StepExport() {
   const isRendering    = useAppStore(s => s.isRendering)
   const logs           = useAppStore(s => s.logs)
   const lastOutput     = useAppStore(s => s.lastOutput)
-  const progress       = useAppStore(s => s.progress)
+  const stage          = useAppStore(s => s.stage)
+  const progressPct    = useAppStore(s => s.progressPct)
+  const frame          = useAppStore(s => s.frame)
+  const totalFrames    = useAppStore(s => s.totalFrames)
+  const etaSeconds     = useAppStore(s => s.etaSeconds)
   const back           = useAppStore(s => s.back)
 
   const logRef = useRef<HTMLDivElement>(null)
@@ -105,6 +132,10 @@ export default function StepExport() {
       const err = e as AppError
       useAppStore.setState(s => ({ logs: [...s.logs, `Error: ${err.detail ?? err.message}`], isRendering: false }))
     }
+  }
+
+  const cancelRender = () => {
+    void ipc.cancelRender()
   }
 
   const openOutput = () => {
@@ -191,18 +222,30 @@ export default function StepExport() {
         {isRendering && (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, fontSize: 11, color: '#6B7280' }}>
-              <span>Rendering…</span>
-              <span style={{ fontWeight: 600, color: '#6C4FF6' }}>{Math.round(progress)}%</span>
+              <span>{STAGE_LABELS[stage] || 'Rendering…'}</span>
+              <span style={{ fontWeight: 600, color: '#6C4FF6' }}>{Math.round(progressPct)}%</span>
             </div>
             <div style={{ height: 6, background: '#E5E7EB', borderRadius: 3, overflow: 'hidden' }}>
               <div style={{
                 height: '100%',
-                width: `${progress}%`,
+                width: `${progressPct}%`,
                 background: 'linear-gradient(90deg, #6C4FF6, #EC4FC4)',
                 borderRadius: 3,
                 transition: 'width 0.4s ease',
               }} />
             </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: 10.5, color: '#9CA3AF' }}>
+              <span>{totalFrames > 0 ? `Frame ${frame} / ${totalFrames}` : ''}</span>
+              <span>{formatEta(etaSeconds) ?? ''}</span>
+            </div>
+            <button onClick={cancelRender} style={{
+              marginTop: 8, width: '100%',
+              background: '#FEF2F2', color: '#DC2626', border: '1px solid #FCA5A5',
+              borderRadius: 8, padding: '7px 0', fontSize: 12, fontWeight: 600,
+              cursor: 'pointer', fontFamily: 'inherit',
+            }}>
+              Cancel render
+            </button>
           </div>
         )}
 
