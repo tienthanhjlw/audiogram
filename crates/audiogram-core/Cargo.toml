@@ -1,0 +1,9 @@
+[package]
+name = "audiogram-core"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+serde = { workspace = true }
+specta = { workspace = true }
+thiserror = { workspace = true }

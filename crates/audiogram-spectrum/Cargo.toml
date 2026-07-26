@@ -1,0 +1,9 @@
+[package]
+name = "audiogram-spectrum"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+rustfft = "6"
+serde = { workspace = true }
+specta = { workspace = true }

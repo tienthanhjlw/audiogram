@@ -1,0 +1,8 @@
+[workspace]
+resolver = "2"
+members = ["crates/*", "apps/desktop/src-tauri"]
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+specta = { version = "=2.0.0-rc.20", features = ["derive"] }
+thiserror = "1"

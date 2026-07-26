@@ -1,9 +1,9 @@
 use std::{fs, path::PathBuf};
+use audiogram_core::util::{format_ass_time, hex_to_rgb};
 use crate::{
     domain::entities::Segment,
-    shared::{util::hex_to_rgb, AppError},
+    shared::AppError,
 };
-use super::util::format_ass_time;
 use super::srt::subtitle_dir;
 
 pub struct AssWriter;

@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use specta::Type;
-use crate::shared::{util::hex_to_rgb, AppError};
+use crate::{util::hex_to_rgb, AppError};
 use super::{Layout, WaveStyle};
 
 /// Raw DTO from Tauri IPC — mirrors the JS object sent by the frontend verbatim.

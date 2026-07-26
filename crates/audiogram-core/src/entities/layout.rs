@@ -1,4 +1,4 @@
-use crate::shared::AppError;
+use crate::AppError;
 
 /// All supported canvas layout templates — exhaustive, no silent fallback.
 /// All match arms in `render_frame` and `build_filter_complex` are exhaustive on this.

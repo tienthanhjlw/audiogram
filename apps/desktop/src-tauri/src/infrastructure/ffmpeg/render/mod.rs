@@ -27,13 +27,11 @@ use std::{
 use rayon::prelude::*;
 use tauri::{AppHandle, Emitter};
 
+use audiogram_core::util::{escape_drawtext, wrap_text_2lines};
 use crate::{
     domain::entities::{Layout, RenderEvent, RenderJob, RenderStage, SerializableError},
     infrastructure::{
-        ffmpeg::{
-            audio::{audio_duration, decode_pcm_hound},
-            filter::{escape_drawtext, wrap_text_2lines},
-        },
+        ffmpeg::audio::{audio_duration, decode_pcm_hound},
         spectrum::rustfft::{compute_spectrum, EQ_BANDS, EQ_BPS},
     },
     shared::{util::emit_log, AppError},

@@ -1,7 +1,7 @@
 use serde::Serialize;
 use specta::Type;
 
-use crate::shared::AppError;
+use crate::AppError;
 
 /// The 4 stages `encode_blocking` moves through before the terminal
 /// `RenderEvent::Done`/`Failed`. TECH_ARCHITECTURE.md §2.3.

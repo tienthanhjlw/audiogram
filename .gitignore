@@ -14,6 +14,11 @@ dist_build2
 dist_test
 *.local
 
+# Cargo workspace build output (T15 — root Cargo.toml now builds into
+# <root>/target/ instead of apps/desktop/src-tauri/target/, which had its
+# own .gitignore entry already)
+/target
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

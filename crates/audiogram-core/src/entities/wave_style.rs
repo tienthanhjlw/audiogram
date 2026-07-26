@@ -1,4 +1,4 @@
-use crate::shared::AppError;
+use crate::AppError;
 
 /// All supported waveform visual styles — exhaustive, no silent fallback.
 /// `effect_for(WaveStyle)` in infrastructure has a compile-checked match on this.

@@ -1,6 +1,12 @@
 use std::{fs, path::Path};
 use tauri::{AppHandle, Emitter};
 
+// hex_to_rgb moved to crates/audiogram-core/src/util.rs (T15) — re-exported
+// here so every existing `crate::shared::util::hex_to_rgb` call site keeps
+// resolving. emit_log/ensure_executable stay here: both are Tauri/OS-coupled
+// (AppHandle, file permissions), not pure.
+pub use audiogram_core::util::hex_to_rgb;
+
 // ── Logging ───────────────────────────────────────────────
 
 pub fn emit_log(app: &AppHandle, msg: impl AsRef<str>) {
@@ -26,17 +32,4 @@ pub fn ensure_executable(p: &Path) -> Result<(), String> {
 #[cfg(not(unix))]
 pub fn ensure_executable(_p: &Path) -> Result<(), String> {
     Ok(())
-}
-
-// ── Color ─────────────────────────────────────────────────
-
-/// Parse a `#RRGGBB` hex string into `[r, g, b]` bytes.
-pub fn hex_to_rgb(hex: &str) -> [u8; 3] {
-    let h = hex.trim().trim_start_matches('#');
-    let n = u32::from_str_radix(h, 16).unwrap_or(0);
-    [
-        ((n >> 16) & 0xFF) as u8,
-        ((n >> 8) & 0xFF) as u8,
-        (n & 0xFF) as u8,
-    ]
 }
