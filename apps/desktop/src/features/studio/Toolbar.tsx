@@ -1,7 +1,7 @@
 import { useRef, useState, type ReactNode } from 'react'
-import { open } from '@tauri-apps/plugin-dialog'
 import { useAppStore, type Mode } from '../../store'
 import { isMac, TRAFFIC_LIGHT_INSET } from '../../app/platform'
+import { actions } from '../../app/actions'
 import { ipc } from '../../core/ipc/client'
 import { Button, Modal, Popover, SegmentedControl, Tooltip } from '../../ui'
 
@@ -38,7 +38,10 @@ function MenuSeparator() {
 // T11: file chip + dropdown (Open Audio real, Open Recent/Replace Audio
 // disabled — need Recents/§8.2 infra not built until Phase 2), mode
 // switcher, Export button. `Reveal in Finder` is wired for real since
-// ipc.openFolder already exists (T8) and needs no new infra.
+// ipc.openFolder already exists (T8) and needs no new infra. Open
+// Audio/Export/mode-switch all call into app/actions.ts (T13) — the same
+// functions the keydown shortcuts and native menu use — instead of each
+// having their own copy of the logic.
 export function Toolbar() {
   const audioPath = useAppStore(s => s.audioPath)
   const audioName = useAppStore(s => s.audioName)
@@ -46,25 +49,13 @@ export function Toolbar() {
   const isRendering = useAppStore(s => s.isRendering)
   const progress = useAppStore(s => s.progress)
   const segmentsCount = useAppStore(s => s.segments.length)
-  const set = useAppStore(s => s.set)
-  const goTo = useAppStore(s => s.goTo)
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [confirmNewProject, setConfirmNewProject] = useState(false)
   const chipRef = useRef<HTMLButtonElement>(null)
 
-  // Copied from StepUpload.tsx's pickFile (T11 — "logic pickFile chuyển từ
-  // StepUpload: copy hàm, giữ nguyên filter/auto-title").
-  const pickFile = async () => {
-    const file = await open({
-      multiple: false,
-      filters: [{ name: 'Audio', extensions: ['mp3', 'wav', 'm4a', 'flac', 'aac', 'ogg'] }],
-    })
-    if (!file) return
-    const path = String(file)
-    const name = path.replace(/\\/g, '/').split('/').pop() || path
-    const newTitle = name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ')
-    set({ audioPath: path, audioName: name, title: newTitle })
+  const pickFile = () => {
+    void actions.openAudio()
     setMenuOpen(false)
   }
 
@@ -76,8 +67,8 @@ export function Toolbar() {
   }
 
   const handleModeChange = (next: Mode) => {
-    set({ mode: next })
-    goTo(next === 'design' ? 'layout' : 'transcript')
+    if (next === 'design') actions.setModeDesign()
+    else actions.setModeCaptions()
   }
 
   const confirmReset = () => {
@@ -127,11 +118,11 @@ export function Toolbar() {
 
       <div className="flex flex-1 items-center justify-end">
         {isRendering ? (
-          <Button variant="secondary" size="md" onClick={() => goTo('export')}>
+          <Button variant="secondary" size="md" onClick={actions.exportProject}>
             ◔ {progress}%
           </Button>
         ) : (
-          <Button variant="primary" size="md" shortcutHint="⌘E" disabled={!audioPath} onClick={() => goTo('export')}>
+          <Button variant="primary" size="md" shortcutHint="⌘E" disabled={!audioPath} onClick={actions.exportProject}>
             Export
           </Button>
         )}

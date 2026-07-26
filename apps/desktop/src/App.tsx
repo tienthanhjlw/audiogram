@@ -7,6 +7,7 @@ import StartScreen from './features/start/StartScreen'
 import { StudioLayout } from './features/studio/StudioLayout'
 import { Toolbar } from './features/studio/Toolbar'
 import { TransportBar } from './features/transport/TransportBar'
+import { ShortcutsHelpModal } from './app/ShortcutsHelpModal'
 
 export default function App() {
   const screen          = useAppStore(s => s.screen)
@@ -33,6 +34,8 @@ export default function App() {
           <div className="loading-bar-fill" />
         </div>
       )}
+
+      <ShortcutsHelpModal />
 
       {screen === 'start' ? (
         <StartScreen />

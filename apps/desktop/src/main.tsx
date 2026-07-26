@@ -7,6 +7,8 @@ import './App.css'
 import { useAppStore } from './store'
 import { attachIpcEvents } from './core/ipc/events'
 import { attachAudioEngine } from './core/audio/bootstrap'
+import { attachShortcuts } from './app/shortcuts'
+import { buildAppMenu } from './app/menu'
 
 // Temporary visual QA route for the ui/ primitives (T4/T5) — not part of
 // the app's real navigation, removed once features/ has its own screens.
@@ -21,6 +23,14 @@ attachIpcEvents(useAppStore)
 // file once and owns the single <audio> element; this wires its ticks into
 // playback.slice (TECH_ARCHITECTURE §2.6).
 attachAudioEngine(useAppStore)
+
+// One global keydown listener (T13) — same one-subscription pattern as
+// above, guarded per-entry against typing in a field (shortcuts.ts).
+attachShortcuts()
+
+// Replaces Tauri's default menu with File/Edit/View/Help (app/menu.ts).
+// Soft-fails outside a real Tauri webview (e.g. the Vite-only dev preview).
+void buildAppMenu().catch(() => {})
 
 async function main() {
   const Root = isGallery ? (await import('./ui/__gallery__')).default : App

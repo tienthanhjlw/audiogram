@@ -12,6 +12,9 @@ export interface UiSlice {
   step: Step
   /** New in Phase 1 (T7) — which panel set Studio mode shows (T11). */
   mode: Mode
+  /** New in T13 — set by the Help > Keyboard Shortcuts native menu item
+   * (app/actions.ts's openShortcutsHelp), read by ShortcutsHelpModal.tsx. */
+  shortcutsHelpOpen: boolean
   /** Generic patch escape hatch, unchanged signature/behavior from the
    * pre-Phase-1 store (widened to the full new state shape so new code can
    * set the new fields too — every old call site's patch shape is still
@@ -25,6 +28,7 @@ export interface UiSlice {
 export const createUiSlice: StateCreator<AppStore, [], [], UiSlice> = (set, get) => ({
   step: 'upload',
   mode: 'design',
+  shortcutsHelpOpen: false,
   set: (patch) => set(patch),
   goTo: (step) => set({ step }),
   next: () => {
