@@ -494,6 +494,11 @@ export default function WaveformCanvas({
   const fftPeaksRef  = useRef<Float32Array | null>(null)
   const fftBucketsRef = useRef<number>(0)
 
+  // TODO(p1-t10): this effect decodes the same file AudioEngine
+  // (core/audio/AudioEngine.ts) now also decodes for playback.slice.peaks —
+  // a duplicate decode, left in place per PHASE1_TASKS.md T10 ("component cũ
+  // vẫn tự decode — trùng 1 lần decode là chấp nhận được trong Phase 1").
+  // Phase 2 ports this preview onto AudioEngine's cached envelope instead.
   useEffect(() => {
     if (!audioPath || audioPath === loadedRef.current) return
     loadedRef.current = audioPath
