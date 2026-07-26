@@ -72,6 +72,8 @@ The canvas preview and the Rust renderer must produce identical output. These co
 
 Layout geometry (waveform rect coordinates, avatar center/radius, split column widths) in each of the 6 layout match arms in `video/frame.rs` must mirror the corresponding `draw*` function in `WaveformCanvas.tsx`.
 
+**Golden-frame test (Rust side):** `crates/audiogram-render/tests/golden_frames.rs` renders every (layout × {bar, eq, orb} × t={0%,25%,50%}) combination against fixed deterministic input and byte-compares it to a PNG committed under `crates/audiogram-render/tests/golden/`. Run with `cargo test -p audiogram-render --test golden_frames` (also included in `cargo test --workspace` / CI). **Any change to a render constant (`WAVE_BARS`, `BAR_FILL`, `GAP_FILL`, `BG_DARK_TOP/BOTTOM`, ...) or to layout/waveform geometry in `frame.rs`/`wave/*` will fail this test.** That's expected when the change is intentional — delete the affected golden PNG(s), rerun the test to regenerate them, review the new PNGs by eye (and the diff image written to `target/golden-diffs/` if a mismatch occurs), then commit the updated goldens alongside the code change. Do not delete/regenerate a golden PNG to make a test pass without visually confirming the new frame is correct.
+
 ### EQ Wave Style
 
 The `eq` style has two code paths (both frontend and Rust):

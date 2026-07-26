@@ -254,6 +254,7 @@ version = "0.0.0"
 dependencies = [
  "audiogram-core",
  "audiogram-spectrum",
+ "image",
 ]
 
 [[package]]

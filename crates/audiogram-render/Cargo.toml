@@ -6,3 +6,9 @@ edition = "2021"
 [dependencies]
 audiogram-core = { path = "../audiogram-core" }
 audiogram-spectrum = { path = "../audiogram-spectrum" }
+
+[dev-dependencies]
+# Golden-frame parity test (tests/golden_frames.rs, OPTIMIZATION_PLAN.md F2)
+# only — encode/decode committed reference PNGs. Test-only, doesn't affect
+# the crate's runtime dependency footprint.
+image = { version = "0.25", default-features = false, features = ["png"] }

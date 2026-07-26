@@ -32,6 +32,10 @@ jobs:
       # committed, same as a contributor who forgot to regenerate would see
       # locally.
       - run: cargo check --workspace
+      # Includes crates/audiogram-render/tests/golden_frames.rs — the
+      # golden-frame parity guard (OPTIMIZATION_PLAN.md F2). No separate
+      # step needed: it's a normal integration test, picked up by
+      # `--workspace` like any other.
       - run: cargo test --workspace
 
   # NOTE: `tauri build` is intentionally not run in Phase 1 CI — it's slow
