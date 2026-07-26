@@ -14,6 +14,13 @@ dist_build2
 dist_test
 *.local
 
+# Whisper model — large binary, fetched via `npm run setup:whisper` into
+# apps/desktop/src-tauri/models/ (already gitignored there). A stale root-level
+# copy from before the T1 workspace move was purged from git history entirely
+# (git filter-repo) since it exceeded GitHub's 100MB push limit — this stops
+# it from ever being re-tracked at the root by accident.
+/models
+
 # Cargo workspace build output (T15 — root Cargo.toml now builds into
 # <root>/target/ instead of apps/desktop/src-tauri/target/, which had its
 # own .gitignore entry already)
