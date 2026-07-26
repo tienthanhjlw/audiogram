@@ -6,41 +6,7 @@ import { Segment, ModelInfo, CANVAS_SIZES } from '../types'
 import WaveformCanvas from './WaveformCanvas'
 import { useAppStore } from '../store'
 import { KARAOKE_COLORS, SUBTITLE_COLORS } from '../extensions/palettes'
-
-const SPLIT_BPS = 30
-
-// ── Silence-based segment splitting ──────────────────────────────────────────
-
-function findSilence(envelope: number[], startSec: number, endSec: number): number {
-  const s = Math.floor(startSec * SPLIT_BPS)
-  const e = Math.ceil(endSec * SPLIT_BPS)
-  if (e <= s + 1 || envelope.length === 0) return (startSec + endSec) / 2
-  let minVal = Infinity, minIdx = Math.floor((s + e) / 2)
-  for (let i = s; i <= Math.min(e, envelope.length - 1); i++) {
-    if (envelope[i] < minVal) { minVal = envelope[i]; minIdx = i }
-  }
-  return minIdx / SPLIT_BPS
-}
-
-function splitSegments(segs: Segment[], envelope: number[], maxDur = 3.5): Segment[] {
-  function recurse(seg: Segment, depth: number): Segment[] {
-    const dur = seg.end - seg.start
-    if (dur <= maxDur || depth > 6 || !seg.text.trim()) return [seg]
-    const margin = Math.min(0.5, dur * 0.15)
-    const splitAt = envelope.length > 0
-      ? findSilence(envelope, seg.start + margin, seg.end - margin)
-      : (seg.start + seg.end) / 2
-    const words = seg.text.split(/\s+/).filter(Boolean)
-    if (words.length < 2) return [seg]
-    const ratio = Math.max(0.1, Math.min(0.9, (splitAt - seg.start) / dur))
-    const splitWord = Math.max(1, Math.min(words.length - 1, Math.round(words.length * ratio)))
-    const left:  Segment = { id: 0, start: seg.start, end: splitAt,  text: words.slice(0, splitWord).join(' ') }
-    const right: Segment = { id: 0, start: splitAt,   end: seg.end,  text: words.slice(splitWord).join(' ') }
-    return [...recurse(left, depth + 1), ...recurse(right, depth + 1)]
-  }
-  let id = 0
-  return segs.flatMap(seg => recurse(seg, 0)).filter(s => s.text.trim()).map(s => ({ ...s, id: id++ }))
-}
+import { splitSegments } from '@audiogram/segments'
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
