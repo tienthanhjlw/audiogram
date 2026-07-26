@@ -1,7 +1,7 @@
 // `bar` — capsule bars with gradient. Default style. Parity: effects/bar.rs
 import type { WaveEffect } from './types'
 import { WAVE_BARS } from './support'
-import { BAR_FILL, GAP_FILL } from '../domain/contract.gen'
+import { BAR_FILL, GAP_FILL } from '@audiogram/contract'
 
 export const barEffect: WaveEffect = {
   id: 'bar',

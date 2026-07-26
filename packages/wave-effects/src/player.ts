@@ -1,7 +1,7 @@
 // `player` — media player style: amplitude texture + progress fill + play triangle + time text
 import type { WaveEffect } from './types'
 import { WAVE_BARS } from './support'
-import { BAR_FILL, GAP_FILL } from '../domain/contract.gen'
+import { BAR_FILL, GAP_FILL } from '@audiogram/contract'
 
 export const playerEffect: WaveEffect = {
   id: 'player',

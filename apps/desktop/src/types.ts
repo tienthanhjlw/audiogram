@@ -43,10 +43,10 @@ export interface LayoutZones {
 
 // Default zones match the hardcoded positions in each draw function exactly.
 // These values ensure the overlay boxes align with canvas content by default.
-// Sourced from contract/zones.json via contract.gen.ts (T14) — re-exported
-// here so every existing `import { DEFAULT_ZONES } from '../types'` call
-// site keeps working unchanged.
-export { DEFAULT_ZONES } from './domain/contract.gen'
+// Sourced from contract/zones.json via @audiogram/contract (T14/T17) —
+// re-exported here so every existing `import { DEFAULT_ZONES } from
+// '../types'` call site keeps working unchanged.
+export { DEFAULT_ZONES } from '@audiogram/contract'
 
 export interface AppState {
   step: Step
@@ -108,10 +108,14 @@ export const BG_COLORS = [
   { hex: '#1E1E2E', name: 'Catppuccin' },
 ]
 
-// Wave styles are now defined per-effect in `src/waves/`. The UI list is derived
-// from the effect registry (single source of truth) and re-exported here so
-// existing `import { WAVE_STYLES } from '../types'` call sites keep working.
-export { WAVE_STYLES } from './waves/registry'
+// Wave styles are defined per-effect in @audiogram/wave-effects (T17). The UI
+// list is derived from that package's effect registry (single source of
+// truth) — re-exported here, narrowed back to WaveStyle (the package itself
+// only knows `id: string`, since it can't depend on this file's types), so
+// existing `import { WAVE_STYLES } from '../types'` call sites keep working
+// with the same shape as before.
+import { WAVE_STYLES as WAVE_STYLES_UNTYPED } from '@audiogram/wave-effects'
+export const WAVE_STYLES = WAVE_STYLES_UNTYPED as { id: WaveStyle; label: string; desc: string }[]
 
 // ─── Whisper Transcription ────────────────────────────────
 export interface ModelInfo {

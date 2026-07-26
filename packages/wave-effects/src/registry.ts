@@ -1,7 +1,6 @@
 // Wave effect registry — single source of truth for all visual styles.
 // To add a style: create `<name>.ts`, import it, add one entry below.
 // Each effect pairs 1:1 with a Rust counterpart in render/wave/effects/<name>.rs.
-import type { WaveStyle } from '../types'
 import type { WaveEffect } from './types'
 import { barEffect } from './bar'
 import { lineEffect } from './line'
@@ -13,7 +12,10 @@ import { pulseEffect } from './pulse'
 import { eqEffect } from './eq'
 import { playerEffect } from './player'
 
-export const WAVE_EFFECTS: Record<WaveStyle, WaveEffect> = {
+// Keyed by plain string (this package doesn't own the app's WaveStyle
+// union) — apps/desktop/src/types.ts's WAVE_STYLES re-export narrows back
+// to WaveStyle for store typing.
+export const WAVE_EFFECTS: Record<string, WaveEffect> = {
   bar:    barEffect,
   line:   lineEffect,
   mirror: mirrorEffect,
@@ -26,7 +28,7 @@ export const WAVE_EFFECTS: Record<WaveStyle, WaveEffect> = {
 }
 
 /** UI list (id/label/desc) derived from the registry — no separate duplicate. */
-export const WAVE_STYLES: { id: WaveStyle; label: string; desc: string }[] =
+export const WAVE_STYLES: { id: string; label: string; desc: string }[] =
   Object.values(WAVE_EFFECTS).map(({ id, label, desc }) => ({ id, label, desc }))
 
 export type { WaveEffect, WaveDrawCtx } from './types'

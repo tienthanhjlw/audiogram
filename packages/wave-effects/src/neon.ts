@@ -1,7 +1,7 @@
 // `neon` — glowing bars (shadow glow + bright white core). Parity: effects/neon.rs
 import type { WaveEffect } from './types'
 import { WAVE_BARS } from './support'
-import { BAR_FILL, GAP_FILL } from '../domain/contract.gen'
+import { BAR_FILL, GAP_FILL } from '@audiogram/contract'
 
 export const neonEffect: WaveEffect = {
   id: 'neon',

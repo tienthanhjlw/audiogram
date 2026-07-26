@@ -1,6 +1,6 @@
 // `pulse` — bell-windowed bars (centre emphasised, edges tapered). Parity: effects/pulse.rs
 import type { WaveEffect } from './types'
-import { BAR_FILL, GAP_FILL } from '../domain/contract.gen'
+import { BAR_FILL, GAP_FILL } from '@audiogram/contract'
 
 export const pulseEffect: WaveEffect = {
   id: 'pulse',

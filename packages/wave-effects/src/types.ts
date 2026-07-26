@@ -1,5 +1,3 @@
-import type { WaveStyle } from '../types'
-
 /** Everything a wave effect needs to draw. Built once per frame by the canvas dispatcher. */
 export interface WaveDrawCtx {
   ctx: CanvasRenderingContext2D
@@ -22,9 +20,13 @@ export interface WaveDrawCtx {
   wh: number
 }
 
-/** A self-contained waveform visual style. Register in `registry.ts`. */
+/** A self-contained waveform visual style. Register in `registry.ts`.
+ * `id` is a plain string (not the app's `WaveStyle` union) — this package
+ * can't depend on its own consumer's types; apps/desktop/src/types.ts keeps
+ * the `WaveStyle` union for store typing and validates against this
+ * package's registry where it needs to narrow a string back to it. */
 export interface WaveEffect {
-  id: WaveStyle
+  id: string
   label: string
   desc: string
   draw(c: WaveDrawCtx): void

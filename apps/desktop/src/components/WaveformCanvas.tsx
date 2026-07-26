@@ -2,8 +2,7 @@ import { useEffect, useRef, useCallback } from 'react'
 import { convertFileSrc } from '@tauri-apps/api/core'
 import { invoke } from '@tauri-apps/api/core'
 import { WaveStyle, Segment, LayoutTemplate, LayoutZones, DEFAULT_ZONES } from '../types'
-import { WAVE_EFFECTS } from '../waves/registry'
-import { WAVE_BARS, waveHeights } from '../waves/support'
+import { WAVE_EFFECTS, WAVE_BARS, waveHeights } from '@audiogram/wave-effects'
 
 interface Props {
   audioPath: string

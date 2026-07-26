@@ -1,10 +1,10 @@
 // Shared waveform helpers + constants. Parity: src-tauri/.../render/wave/support.rs
 // WAVE_BARS must match Rust's WAVE_BARS (frame.rs) — sourced from
-// contract/constants.json via contract.gen.ts (T14), re-exported here so
-// every existing `import { WAVE_BARS } from '../waves/support'` call site
-// keeps working unchanged.
-export { WAVE_BARS } from '../domain/contract.gen'
-import { WAVE_BARS } from '../domain/contract.gen'
+// contract/constants.json via @audiogram/contract (T14/T17), re-exported
+// here so every existing `import { WAVE_BARS } from '@audiogram/wave-effects'`
+// call site keeps working unchanged.
+export { WAVE_BARS } from '@audiogram/contract'
+import { WAVE_BARS } from '@audiogram/contract'
 
 /** Window `WAVE_BARS` amplitude buckets centred on `tSec`. Mirrors `wave_heights()` in Rust. */
 export function waveHeights(env: number[], tSec: number, dur: number, loop: boolean): number[] {

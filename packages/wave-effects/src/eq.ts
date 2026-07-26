@@ -1,7 +1,7 @@
 // `eq` — spectrum analyser bars. Uses real FFT when available, else a
 // time-lagged EMA simulation. Mutates `eqState` in place. Parity: effects/eq.rs
 import type { WaveEffect, WaveDrawCtx } from './types'
-import { BAR_FILL, EQ_BANDS, GAP_FILL } from '../domain/contract.gen'
+import { BAR_FILL, EQ_BANDS, GAP_FILL } from '@audiogram/contract'
 
 export const eqEffect: WaveEffect = {
   id: 'eq',

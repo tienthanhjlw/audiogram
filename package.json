@@ -10,6 +10,7 @@
     "dev": "npm run tauri -w audiogram -- dev",
     "build": "npm run tauri -w audiogram -- build",
     "contract:gen": "node contract/codegen.mjs",
+    "test": "npm run test --workspaces --if-present",
     "fetch:ffmpeg": "node scripts/copy-ffmpeg.mjs",
     "setup:whisper": "bash scripts/setup-whisper.sh",
     "setup:bundle": "bash scripts/setup-whisper.sh && node scripts/copy-ffmpeg.mjs",

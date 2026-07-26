@@ -1,7 +1,7 @@
 // `dot` — vertical dot-matrix columns, fading from centre. Parity: effects/dot.rs
 import type { WaveEffect } from './types'
 import { WAVE_BARS } from './support'
-import { BAR_FILL, GAP_FILL } from '../domain/contract.gen'
+import { BAR_FILL, GAP_FILL } from '@audiogram/contract'
 
 export const dotEffect: WaveEffect = {
   id: 'dot',
