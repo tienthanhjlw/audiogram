@@ -58,6 +58,11 @@ export default tseslint.config(
             from: ['./src/features/**/*', './src/app/**/*', './src/store/**/*'],
             message: 'core/ is app infrastructure below the store/features layer — it must not depend on them.',
           },
+          {
+            target: './src/extensions/**/*',
+            from: ['./src/store/**/*', './src/features/**/*', './src/app/**/*'],
+            message: 'extensions/ (TECH_ARCHITECTURE §3.1 "Cấp 0") sits below store — it must not depend on store, features, or app.',
+          },
           ...FEATURES.map(f => ({
             target: `./src/features/${f}/**/*`,
             from: FEATURES.filter(x => x !== f).map(x => `./src/features/${x}/**/*`),

@@ -5,6 +5,7 @@ import { Virtuoso, VirtuosoHandle } from 'react-virtuoso'
 import { Segment, ModelInfo, CANVAS_SIZES } from '../types'
 import WaveformCanvas from './WaveformCanvas'
 import { useAppStore } from '../store'
+import { KARAOKE_COLORS, SUBTITLE_COLORS } from '../extensions/palettes'
 
 const SPLIT_BPS = 30
 
@@ -40,19 +41,6 @@ function splitSegments(segs: Segment[], envelope: number[], maxDur = 3.5): Segme
   let id = 0
   return segs.flatMap(seg => recurse(seg, 0)).filter(s => s.text.trim()).map(s => ({ ...s, id: id++ }))
 }
-
-// ── Color palettes ────────────────────────────────────────────────────────────
-
-const KARAOKE_COLORS = [
-  { hex: '#FFD60A', name: 'Yellow' }, { hex: '#06B6D4', name: 'Cyan' },
-  { hex: '#EC4FC4', name: 'Pink'   }, { hex: '#6C4FF6', name: 'Purple' },
-  { hex: '#22C55E', name: 'Green'  }, { hex: '#F97316', name: 'Orange' },
-]
-const SUBTITLE_COLORS = [
-  { hex: '#FFFFFF', name: 'White'    }, { hex: '#FEF9C3', name: 'Cream' },
-  { hex: '#BAE6FD', name: 'Sky'      }, { hex: '#BBF7D0', name: 'Mint'  },
-  { hex: '#FBCFE8', name: 'Rose'     }, { hex: '#E9D5FF', name: 'Lavender' },
-]
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
