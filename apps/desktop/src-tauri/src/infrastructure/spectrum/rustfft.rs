@@ -9,13 +9,13 @@ use specta::Type;
 use std::f32::consts::PI;
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-
-/// Number of EQ bars / frequency bands. Must match `BARS` in WaveformCanvas.tsx.
-pub const EQ_BANDS: usize = 40;
-
-/// Buckets per second for the FFT spectrum (independent of WAVE_BPS).
-/// Lower than WAVE_BPS so the JSON payload stays small (~30 BPS × 40 bands × 4 B ≈ 4.8 kB/s).
-pub const EQ_BPS: u32 = 30;
+// Sourced from contract/constants.json via contract_gen.rs (T14) — re-exported
+// here so existing `use ...rustfft::{EQ_BANDS, EQ_BPS}` call sites keep working.
+// EQ_BANDS: number of EQ bars / frequency bands, must match `BARS` in
+// WaveformCanvas.tsx. EQ_BPS: buckets per second for the FFT spectrum
+// (independent of WAVE_BPS) — lower than WAVE_BPS so the JSON payload stays
+// small (~30 BPS × 40 bands × 4 B ≈ 4.8 kB/s).
+pub use crate::domain::contract_gen::{EQ_BANDS, EQ_BPS};
 
 /// Sample rate used for PCM decode. 16 kHz covers all speech + music up to 8 kHz.
 const SAMPLE_RATE: u32 = 16_000;

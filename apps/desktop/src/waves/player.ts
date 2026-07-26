@@ -1,6 +1,7 @@
 // `player` — media player style: amplitude texture + progress fill + play triangle + time text
 import type { WaveEffect } from './types'
 import { WAVE_BARS } from './support'
+import { BAR_FILL, GAP_FILL } from '../domain/contract.gen'
 
 export const playerEffect: WaveEffect = {
   id: 'player',
@@ -8,8 +9,8 @@ export const playerEffect: WaveEffect = {
   desc: 'Media player',
   draw({ ctx, color, peaks, heights, waveTime, waveDur, wx, wy, ww, wh }) {
     const N = WAVE_BARS
-    const bw = ww * 0.64 / N
-    const gap = ww * 0.36 / N
+    const bw = ww * BAR_FILL / N
+    const gap = ww * GAP_FILL / N
     const midY = wy + wh / 2
 
     // progress 0–1

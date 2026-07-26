@@ -1,13 +1,19 @@
 // `pulse` — bell-windowed bars (centre emphasised, edges tapered). Parity: effects/pulse.rs
 import type { WaveEffect } from './types'
+import { BAR_FILL, GAP_FILL } from '../domain/contract.gen'
 
 export const pulseEffect: WaveEffect = {
   id: 'pulse',
   label: 'Pulse',
   desc: 'Bell-curve bloom',
   draw({ ctx, color, peaks, waveTime, waveDur, waveLoop, wx, wy, ww, wh }) {
+    // BARS is this effect's own bell-curve resolution, not EQ_BANDS — the
+    // Rust counterpart (pulse.rs) independently hardcodes the same `40`
+    // rather than importing EQ_BANDS, so this literal is intentionally left
+    // as-is (T14 only unifies constants that are the *same* value on
+    // purpose, not ones that coincidentally match).
     const BARS = 40
-    const bw = ww * 0.64 / BARS, gap = ww * 0.36 / BARS
+    const bw = ww * BAR_FILL / BARS, gap = ww * GAP_FILL / BARS
     const midY = wy + wh / 2
     const M = peaks.length
     const loopedT = waveDur > 0 ? waveTime % waveDur : 0

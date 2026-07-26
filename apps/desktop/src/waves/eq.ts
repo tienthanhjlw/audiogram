@@ -1,6 +1,7 @@
 // `eq` — spectrum analyser bars. Uses real FFT when available, else a
 // time-lagged EMA simulation. Mutates `eqState` in place. Parity: effects/eq.rs
 import type { WaveEffect, WaveDrawCtx } from './types'
+import { BAR_FILL, EQ_BANDS, GAP_FILL } from '../domain/contract.gen'
 
 export const eqEffect: WaveEffect = {
   id: 'eq',
@@ -8,8 +9,8 @@ export const eqEffect: WaveEffect = {
   desc: 'Spectrum analyzer',
   draw(c: WaveDrawCtx) {
     const { ctx, color, peaks, waveTime, waveDur, eqState, fftPeaks, fftBuckets, wx, wy, ww, wh } = c
-    const BARS = 40
-    const bw = ww * 0.64 / BARS, gap = ww * 0.36 / BARS
+    const BARS = EQ_BANDS
+    const bw = ww * BAR_FILL / BARS, gap = ww * GAP_FILL / BARS
     const midY = wy + wh / 2
     const loopedT = waveDur > 0 ? waveTime % waveDur : 0
     const drawBar = (i: number, target: number) => {

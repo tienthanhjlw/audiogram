@@ -1,6 +1,7 @@
 // `neon` — glowing bars (shadow glow + bright white core). Parity: effects/neon.rs
 import type { WaveEffect } from './types'
 import { WAVE_BARS } from './support'
+import { BAR_FILL, GAP_FILL } from '../domain/contract.gen'
 
 export const neonEffect: WaveEffect = {
   id: 'neon',
@@ -8,7 +9,7 @@ export const neonEffect: WaveEffect = {
   desc: 'Glow bars',
   draw({ ctx, color, heights, wx, wy, ww, wh }) {
     const N = WAVE_BARS
-    const bw = ww * 0.64 / N, gap = ww * 0.36 / N
+    const bw = ww * BAR_FILL / N, gap = ww * GAP_FILL / N
     const midY = wy + wh / 2
     ctx.save()
     ctx.shadowColor = color; ctx.shadowBlur = bw * 3.5; ctx.fillStyle = color

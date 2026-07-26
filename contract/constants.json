@@ -1,0 +1,11 @@
+{
+  "WAVE_BARS": 64,
+  "BAR_FILL": 0.64,
+  "GAP_FILL": 0.36,
+  "EQ_BANDS": 40,
+  "EQ_BPS": 30,
+  "WAVE_BPS": 120,
+  "BG_DARK_TOP": 0.22,
+  "BG_DARK_BOTTOM": 0.5,
+  "SPLIT_BPS": 30
+}

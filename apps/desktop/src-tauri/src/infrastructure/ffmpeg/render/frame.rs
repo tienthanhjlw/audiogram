@@ -7,13 +7,13 @@ use super::{
 use crate::domain::entities::{Layout, WaveStyle};
 
 // ── Shared constants (must match WaveformCanvas.tsx) ─────────────────────────
+// Sourced from contract/constants.json via contract_gen.rs (T14) — re-exported
+// here so every existing `use super::frame::{WAVE_BARS, ...}` call site
+// throughout wave/effects/*.rs keeps working unchanged.
+pub use crate::domain::contract_gen::{BAR_FILL, GAP_FILL, WAVE_BARS};
+use crate::domain::contract_gen::{BG_DARK_BOTTOM, BG_DARK_TOP};
 
-pub const WAVE_BARS: usize = 64;
-pub const BAR_FILL:  f32   = 0.64;
-pub const GAP_FILL:  f32   = 0.36;
-const BG_DARK_TOP:   f32   = 0.22;
-const BG_DARK_BOTTOM: f32  = 0.50;
-pub const PINK: [u8; 3]    = [0xEC, 0x4F, 0xC4];
+pub const PINK: [u8; 3] = [0xEC, 0x4F, 0xC4];
 
 // ── Pre-computed per-encode lookup tables ─────────────────────────────────────
 

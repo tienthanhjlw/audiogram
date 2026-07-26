@@ -1,6 +1,7 @@
 // `dot` — vertical dot-matrix columns, fading from centre. Parity: effects/dot.rs
 import type { WaveEffect } from './types'
 import { WAVE_BARS } from './support'
+import { BAR_FILL, GAP_FILL } from '../domain/contract.gen'
 
 export const dotEffect: WaveEffect = {
   id: 'dot',
@@ -9,7 +10,7 @@ export const dotEffect: WaveEffect = {
   draw({ ctx, color, heights, wx, wy, ww, wh }) {
     const N = WAVE_BARS
     const DOT_ROWS = 18
-    const bw = ww * 0.64 / N, gap = ww * 0.36 / N
+    const bw = ww * BAR_FILL / N, gap = ww * GAP_FILL / N
     const rowH = wh / DOT_ROWS
     const dotR = Math.max(1.2, Math.min(bw * 0.38, rowH * 0.42))
     heights.forEach((p, i) => {

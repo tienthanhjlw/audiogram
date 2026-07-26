@@ -4,7 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "predev": "node ../../contract/codegen.mjs",
     "dev": "vite",
+    "prebuild": "node ../../contract/codegen.mjs",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
