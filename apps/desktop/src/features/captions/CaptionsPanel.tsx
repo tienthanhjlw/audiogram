@@ -1,33 +1,24 @@
 import { useMemo, useRef, useState } from 'react'
-import { Virtuoso } from 'react-virtuoso'
 import { useAppStore } from '../../store'
-import { audioEngine } from '../../core/audio/AudioEngine'
 import { matchesSearch } from '../../domain/search'
 import { useTranscribe } from './useTranscribe'
 import { ModelPopover } from './ModelPopover'
+import { SegmentList } from './SegmentList'
 import { Button, Input, Modal, ProgressBar } from '../../ui'
-import type { Segment } from '../../types'
 
 // UI_DESIGN_SPEC.md §5.1 — LEFT PANEL for Captions mode, replacing
-// StepTranscript's monolithic layout (PHASE3_TASKS.md T6). Only clusters 1
-// (Transcribe/Model) and 2 (Search) are this task's job; the segment list
-// below is a plain (non-virtualized-features) bridge — editing, keyboard
-// nav, and the context menu are T7's job, built on top of this same list.
+// StepTranscript's monolithic layout (PHASE3_TASKS.md T6/T7). Cluster 1
+// (Transcribe/Model), cluster 2 (Search), cluster 3 (SegmentList, T7 —
+// virtualized/editable/context-menu).
 export function CaptionsPanel() {
   const segments      = useAppStore(s => s.segments)
   const whisperModel  = useAppStore(s => s.whisperModel)
-  const currentTime   = useAppStore(s => s.currentTime)
   const { run, error, setError, elapsed, hasSegments, isTranscribing } = useTranscribe()
 
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [modelOpen, setModelOpen] = useState(false)
   const [query, setQuery] = useState('')
   const modelTriggerRef = useRef<HTMLButtonElement>(null)
-
-  const activeId = useMemo(() => {
-    const seg = segments.find(s => currentTime >= s.start && currentTime < s.end)
-    return seg?.id ?? null
-  }, [segments, currentTime])
 
   const filtered = useMemo(
     () => segments.filter(s => matchesSearch(s.text, query)),
@@ -37,11 +28,6 @@ export function CaptionsPanel() {
   const handleTranscribeClick = () => {
     if (hasSegments) setConfirmOpen(true)
     else run()
-  }
-
-  const seek = (seg: Segment) => {
-    audioEngine.seek(seg.start)
-    audioEngine.play()
   }
 
   return (
@@ -96,21 +82,14 @@ export function CaptionsPanel() {
         </div>
       </div>
 
-      {/* Cụm 3 — Segment list (bridge; virtualized/edit/context-menu = T7) */}
+      {/* Cụm 3 — Segment list */}
       <div className="min-h-0 flex-1">
         {filtered.length === 0 ? (
           <div className="p-4 text-center text-[12px] text-text-3">
             {segments.length === 0 ? 'No captions yet — transcribe to get started.' : 'No matches.'}
           </div>
         ) : (
-          <Virtuoso
-            data={filtered}
-            itemContent={(_, seg) => (
-              <div className="px-3 pb-1">
-                <SegmentRowStub seg={seg} active={seg.id === activeId} onSeek={() => seek(seg)} />
-              </div>
-            )}
-          />
+          <SegmentList items={filtered} />
         )}
       </div>
 
@@ -126,37 +105,4 @@ export function CaptionsPanel() {
       </Modal>
     </div>
   )
-}
-
-function SegmentRowStub({ seg, active, onSeek }: { seg: Segment; active: boolean; onSeek: () => void }) {
-  const dur = seg.end - seg.start
-  return (
-    <button
-      type="button"
-      onDoubleClick={onSeek}
-      className={[
-        'flex w-full flex-col gap-0.5 rounded-[var(--radius-s)] px-2.5 py-1.5 text-left transition-colors',
-        active ? 'border-l-2 border-accent bg-accent/10' : 'border-l-2 border-transparent hover:bg-bg-elevated',
-      ].join(' ')}
-    >
-      <div className="flex items-center gap-1.5 font-mono text-[10px] text-text-3">
-        <span onClick={e => { e.stopPropagation(); onSeek() }}>▶</span>
-        <span>{fmtTime(seg.start)} → {fmtTime(seg.end)}</span>
-        <span
-          className="rounded-[4px] px-1 py-[1px]"
-          style={dur < 1.2 ? { background: 'rgba(245,158,11,0.25)', color: '#F59E0B' } : undefined}
-        >
-          {dur.toFixed(1)}s
-        </span>
-      </div>
-      <span className="text-[12.5px] leading-[1.5] text-text-1">{seg.text}</span>
-    </button>
-  )
-}
-
-function fmtTime(s: number): string {
-  if (!isFinite(s)) return '0:00.0'
-  const m = Math.floor(s / 60)
-  const rem = (s % 60).toFixed(1)
-  return `${m}:${rem.padStart(4, '0')}`
 }

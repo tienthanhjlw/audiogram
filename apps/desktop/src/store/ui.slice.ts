@@ -22,6 +22,12 @@ export interface UiSlice {
   mode: Mode
   selectedEl: SelectedEl
   selectEl: (el: SelectedEl) => void
+  /** New in P3-T7 — which row SegmentList shows as selected (click once =
+   * select, click/Enter again = edit). Lives in ui.slice per the same
+   * cross-feature-channel rule as `selectedEl`: P3-T9's transport segment
+   * blocks read this too, to stay in sync with the list. */
+  selectedSegmentId: number | null
+  selectSegment: (id: number | null) => void
   /** New in T13 — set by the Help > Keyboard Shortcuts native menu item
    * (app/actions.ts's openShortcutsHelp), read by ShortcutsHelpModal.tsx. */
   shortcutsHelpOpen: boolean
@@ -40,6 +46,8 @@ export const createUiSlice: StateCreator<AppStore, [], [], UiSlice> = (set, get)
   mode: 'design',
   selectedEl: null,
   selectEl: (el) => set({ selectedEl: el }),
+  selectedSegmentId: null,
+  selectSegment: (id) => set({ selectedSegmentId: id }),
   shortcutsHelpOpen: false,
   set: (patch) => set(patch),
   goTo: (step) => set({ step }),
