@@ -1,5 +1,4 @@
 import { useAppStore } from './store'
-import StepExport from './components/StepExport'
 import StartScreen from './features/start/StartScreen'
 import { StudioLayout } from './features/studio/StudioLayout'
 import { Toolbar } from './features/studio/Toolbar'
@@ -10,6 +9,7 @@ import { DesignInspector } from './features/design/DesignInspector'
 import { CaptionsPanel } from './features/captions/CaptionsPanel'
 import { CaptionsCanvas } from './features/captions/CaptionsCanvas'
 import { CaptionsInspector } from './features/captions/CaptionsInspector'
+import { ExportSheet } from './features/export/ExportSheet'
 import { ShortcutsHelpModal } from './app/ShortcutsHelpModal'
 
 // UI_DESIGN_SPEC.md §2.2 — picking/dropping a file jumps straight into
@@ -20,18 +20,17 @@ import { ShortcutsHelpModal } from './app/ShortcutsHelpModal'
 // temporary seam, removed here per PHASE2_TASKS.md T5 step 3).
 export default function App() {
   const screen          = useAppStore(s => s.screen)
-  const step            = useAppStore(s => s.step)
   const mode            = useAppStore(s => s.mode)
   const isTranscribing  = useAppStore(s => s.isTranscribing)
 
   // Design mode has a real 3-pane split (DesignPanel/CanvasStage/
   // DesignInspector, P2-T6/T7/T8). Captions mode now does too (CaptionsPanel/
-  // CaptionsCanvas/CaptionsInspector, P3-T6/T8). The export step still uses
-  // the pre-Phase-1 StepExport monolith, which builds its own wide internal
-  // layout — StudioLayout expands `children` across the inspector column
-  // too when leftPanel/inspector are omitted (P2-T9).
-  const isDesign = step !== 'export' && mode === 'design'
-  const isCaptions = step !== 'export' && mode === 'captions'
+  // CaptionsCanvas/CaptionsInspector, P3-T6/T8). Export is no longer a wizard
+  // step (`goTo('export')`) — P3-T10's ExportSheet opens as an overlay on
+  // top of whichever mode is showing, driven by `ui.slice`'s `exportSheet`
+  // instead of `step`.
+  const isDesign = mode === 'design'
+  const isCaptions = mode === 'captions'
 
   return (
     <>
@@ -42,6 +41,7 @@ export default function App() {
       )}
 
       <ShortcutsHelpModal />
+      <ExportSheet />
 
       {screen === 'start' ? (
         <StartScreen />
@@ -52,8 +52,8 @@ export default function App() {
           leftPanel={isDesign ? <DesignPanel /> : isCaptions ? <CaptionsPanel /> : undefined}
           inspector={isDesign ? <DesignInspector /> : isCaptions ? <CaptionsInspector /> : undefined}
         >
-          <div key={step === 'export' ? 'export' : mode} className="animate-mode-fade-slide h-full">
-            {step === 'export' ? <StepExport /> : mode === 'design' ? <CanvasStage /> : <CaptionsCanvas />}
+          <div key={mode} className="animate-mode-fade-slide h-full">
+            {mode === 'design' ? <CanvasStage /> : <CaptionsCanvas />}
           </div>
         </StudioLayout>
       )}

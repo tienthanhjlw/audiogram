@@ -12,6 +12,14 @@ export type Mode = 'design' | 'captions'
  * the only shared channel between them. */
 export type SelectedEl = 'wave' | 'title' | 'subtitle' | 'avatar' | null
 
+/** Export Sheet's 4 sequential states (UI_DESIGN_SPEC.md §7) — 'closed'
+ * means the sheet isn't rendered at all. TECH_ARCHITECTURE.md §2.2 calls
+ * this `exportSheetState`; kept as `exportSheet` to match the feature
+ * folder/component name. Not persisted (SessionRepository, P2-T4) — an
+ * export in flight doesn't survive an app restart, and reopening one
+ * mid-render would have nothing to reconnect to. */
+export type ExportSheetState = 'closed' | 'settings' | 'rendering' | 'success' | 'error'
+
 const STEPS: Step[] = ['upload', 'layout', 'transcript', 'export']
 
 export interface UiSlice {
@@ -37,6 +45,11 @@ export interface UiSlice {
    * still trigger a scroll. */
   scrollToActiveSegmentRequest: number
   requestScrollToActiveSegment: () => void
+  /** New in P3-T10 — Export Sheet visibility/state, opened by
+   * app/actions.ts's exportProject (⌘E, toolbar button, menu) instead of
+   * the legacy `goTo('export')`. */
+  exportSheet: ExportSheetState
+  setExportSheet: (state: ExportSheetState) => void
   /** New in T13 — set by the Help > Keyboard Shortcuts native menu item
    * (app/actions.ts's openShortcutsHelp), read by ShortcutsHelpModal.tsx. */
   shortcutsHelpOpen: boolean
@@ -59,6 +72,8 @@ export const createUiSlice: StateCreator<AppStore, [], [], UiSlice> = (set, get)
   selectSegment: (id) => set({ selectedSegmentId: id }),
   scrollToActiveSegmentRequest: 0,
   requestScrollToActiveSegment: () => set(s => ({ scrollToActiveSegmentRequest: s.scrollToActiveSegmentRequest + 1 })),
+  exportSheet: 'closed',
+  setExportSheet: (state) => set({ exportSheet: state }),
   shortcutsHelpOpen: false,
   set: (patch) => set(patch),
   goTo: (step) => set({ step }),

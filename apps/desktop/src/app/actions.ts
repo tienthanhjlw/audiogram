@@ -46,8 +46,12 @@ function openRecentEntry(entry: { audioPath: string; audioName: string; title: s
   })
 }
 
+// PHASE3_TASKS.md T10 — opens the Export Sheet instead of the legacy 4-step
+// wizard's `goTo('export')`. Guarded so ⌘E/menu/toolbar can't reopen the
+// sheet mid-render (it stays open, driven by the render pipeline instead).
 function exportProject(): void {
-  useAppStore.getState().goTo('export')
+  const { exportSheet, setExportSheet } = useAppStore.getState()
+  if (exportSheet === 'closed') setExportSheet('settings')
 }
 
 function setMode(mode: Mode): void {

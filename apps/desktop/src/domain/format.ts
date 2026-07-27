@@ -37,3 +37,20 @@ export function formatDuration(seconds: number): string {
   const s = Math.floor(seconds % 60)
   return `${m}:${String(s).padStart(2, '0')}`
 }
+
+/** Export Sheet's FILE NAME field (UI_DESIGN_SPEC.md §7.1) prefills from
+ * `title` — lowercase, non-alphanumerics collapsed to single hyphens,
+ * trimmed. Falls back to 'audiogram' for an empty/all-punctuation title. */
+export function slugify(text: string): string {
+  const slug = text.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+  return slug || 'audiogram'
+}
+
+/** Export Sheet's "Estimated: ~45 MB" — MB with no decimal once it's a
+ * 3-digit number, GB past 1000 MB. */
+export function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 MB'
+  const mb = bytes / (1024 * 1024)
+  if (mb < 1000) return `${mb.toFixed(mb < 10 ? 1 : 0)} MB`
+  return `${(mb / 1024).toFixed(1)} GB`
+}
