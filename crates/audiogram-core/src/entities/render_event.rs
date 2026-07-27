@@ -38,7 +38,8 @@ impl From<&AppError> for SerializableError {
             AppError::Encode(_)
             | AppError::Subtitle(_)
             | AppError::InvalidWaveStyle(_)
-            | AppError::InvalidLayout(_) => "unknown",
+            | AppError::InvalidLayout(_)
+            | AppError::InvalidTitleAlign(_) => "unknown",
         };
         Self { kind: kind.to_string(), message: e.to_string() }
     }

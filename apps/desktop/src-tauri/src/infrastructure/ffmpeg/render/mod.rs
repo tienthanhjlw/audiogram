@@ -29,14 +29,15 @@ use std::{
 use rayon::prelude::*;
 use tauri::{AppHandle, Emitter};
 
-use audiogram_core::util::{escape_drawtext, wrap_text_2lines};
+use audiogram_core::util::escape_drawtext;
 use audiogram_render::{
-    frame::{compute_frame_luts, render_frame_into, CoverImage},
+    frame::{compute_frame_luts, compute_title_pixels, render_frame_into, CoverImage, TitleSpec},
+    text as text_engine,
     wave::{advance_eq_state, effect_for},
     ProgressSink,
 };
 use crate::{
-    domain::entities::{Layout, RenderEvent, RenderJob, RenderStage, SerializableError},
+    domain::entities::{RenderEvent, RenderJob, RenderStage, SerializableError},
     infrastructure::{
         ffmpeg::audio::{audio_duration, decode_pcm_hound},
         spectrum::rustfft::{compute_spectrum, EQ_BANDS, EQ_BPS},
@@ -207,13 +208,32 @@ pub fn encode_blocking(
     emit_log(&app, "Building frame LUTs…");
     let luts = compute_frame_luts(w, h, job.bg_color, job.layout);
 
+    // ── Stage 1d': Title pixels ────────────────────────────────────────────
+    // Rasterized once here — not per frame — since the title never changes
+    // across a render (PHASE3_TASKS.md T4). Replaces the old ffmpeg
+    // `drawtext` filter stage entirely (see build_filter_complex below,
+    // which no longer emits any drawtext).
+    let title_pixels = job.title.as_deref().filter(|t| !t.is_empty()).map(|text| {
+        let mut font_system = text_engine::new_font_system();
+        let mut swash_cache = text_engine::new_swash_cache();
+        let spec = TitleSpec {
+            text: text.to_string(),
+            color: job.title_color,
+            align: job.title_align,
+            bold: job.title_bold,
+            italic: job.title_italic,
+            font_size_pct: job.font_size_pct,
+        };
+        compute_title_pixels(w, h, job.layout, &job.zones, Some(&spec), &mut font_system, &mut swash_cache)
+    }).unwrap_or_default();
+
     // ── Stage 1e: Spawn FFmpeg subprocess ─────────────────────────────────────
     let final_out = PathBuf::from(&job.output_path);
     if let Some(p) = final_out.parent() { let _ = fs::create_dir_all(p); }
     let tmp_out = std::env::temp_dir()
         .join(format!(".audiogram-{}.mp4", std::process::id()));
 
-    let fc = build_filter_complex(&job, w, h);
+    let fc = build_filter_complex(&job);
 
     let mut child = Command::new(&ffmpeg)
         .args(["-y", "-f", "rawvideo", "-pixel_format", "rgba"])
@@ -296,6 +316,7 @@ pub fn encode_blocking(
                         job.layout, eq_snap, &fft_peaks, fft_n_buckets, &luts,
                         cover_image.as_ref(),
                         &job.zones,
+                        &title_pixels,
                     );
                 });
 
@@ -339,52 +360,18 @@ pub fn encode_blocking(
 
 // ── FFmpeg filter graph ───────────────────────────────────────────────────────
 
-fn build_filter_complex(job: &RenderJob, w: usize, h: usize) -> String {
-    let font     = &job.font_name;
-    let fs_scale = job.font_size_pct as f64 / 100.0;
-    let base_fs  = (h as f64 * 0.058 * fs_scale).round() as u32;
-    let line_gap = (base_fs as f64 * 1.4).round() as u32;
-
+// PHASE3_TASKS.md T4 — title used to be drawn here via ffmpeg's `drawtext`
+// filter (fontconfig-dependent: it silently used whatever font happened to
+// resolve to `job.font_name` on the exporting machine, and always rendered
+// white/fixed-centered regardless of the store's titleColor/Align/Bold/
+// Italic). Title is now rasterized directly into the RGBA frame buffer by
+// `audiogram_render::text` + `frame::compute_title_pixels` (Stage 1d' in
+// `encode_blocking` above) — bundled Inter, no fontconfig, and it actually
+// respects the user's title style. This filter graph now only ever adds the
+// libass subtitle overlay.
+fn build_filter_complex(job: &RenderJob) -> String {
     let mut fc = "[0:v]".to_string();
     let mut vi = 0usize;
-
-    if let Some(title) = job.title.as_deref().filter(|t| !t.is_empty()) {
-        // Karaoke layout uses large centred text drawn via ASS — skip drawtext title.
-        let center_y: Option<u32> = match job.layout {
-            Layout::Spotify => Some((h as f64 * 0.50).round() as u32),
-            Layout::Split   => Some((h as f64 * 0.22).round() as u32),
-            Layout::FullBg  => Some((h as f64 * 0.42).round() as u32),
-            Layout::Brand   => Some((h as f64 * 0.44).round() as u32),
-            Layout::Minimal => Some((h as f64 * 0.13).round() as u32),
-            Layout::Karaoke => None, // handled by ASS overlay
-        };
-
-        if let Some(cy) = center_y {
-            let lines   = wrap_text_2lines(title, 30);
-            let total_h = lines.len() as u32 * line_gap;
-            let start_y = cy.saturating_sub(total_h / 2);
-            let x_expr  = match job.layout {
-                Layout::Split => format!("{w}/2+(w/2-text_w)/2"),
-                Layout::Brand => {
-                    let av_r   = ((h as f64 * 0.14).min(w as f64 * 0.09)).round() as u32;
-                    let info_x = (w as f64 * 0.12).round() as u32 + av_r
-                               + (w as f64 * 0.04).round() as u32;
-                    format!("{info_x}")
-                }
-                _ => "(w-text_w)/2".to_string(),
-            };
-            for (i, line) in lines.iter().enumerate() {
-                let t = escape_drawtext(line);
-                let y = start_y + i as u32 * line_gap;
-                vi += 1;
-                fc.push_str(&format!(
-                    "drawtext=text='{t}':font='{font}':fontcolor=white@0.95\
-                    :fontsize={base_fs}:x={x_expr}:y={y}:enable='gt(t\\,0)'[v{vi}];\
-                    [v{vi}]"
-                ));
-            }
-        }
-    }
 
     if let Some(srt) = job.captions_path.as_deref().filter(|p| !p.is_empty()) {
         if Path::new(srt).exists() {

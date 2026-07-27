@@ -116,7 +116,16 @@ cover_image_path: string | null;
  * falls back to `default_zones(layout)`, the same contract-generated data
  * the preview's DEFAULT_ZONES comes from.
  */
-zones: LayoutZones | null }
+zones: LayoutZones | null; 
+/**
+ * Title text style — mirrors the store's `titleColor`/`titleAlign`/
+ * `titleBold`/`titleItalic` (PHASE3_TASKS.md T4, fixes the title
+ * inspector's controls being a no-op at export: the old ffmpeg
+ * `drawtext` path hardcoded white text, fixed per-layout centering,
+ * never bold/italic). `None` for each means the store's own default
+ * (white / center / not bold / not italic).
+ */
+title_color: string | null; title_align: string | null; title_bold: boolean | null; title_italic: boolean | null }
 export type Segment = { id: number; start: number; end: number; text: string }
 export type SpectrumResult = { 
 /**

@@ -29,6 +29,9 @@ pub enum AppError {
     #[error("Unknown layout '{0}' — valid values: spotify, split, minimal, fullbg, karaoke, brand")]
     InvalidLayout(String),
 
+    #[error("Unknown title_align '{0}' — valid values: left, center, right")]
+    InvalidTitleAlign(String),
+
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 

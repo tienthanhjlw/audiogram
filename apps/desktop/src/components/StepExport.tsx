@@ -64,6 +64,10 @@ export default function StepExport() {
   const showSubtitles  = useAppStore(s => s.showSubtitles)
   const srtPath        = useAppStore(s => s.srtPath)
   const zones          = useAppStore(s => s.zones)
+  const titleColor     = useAppStore(s => s.titleColor)
+  const titleAlign     = useAppStore(s => s.titleAlign)
+  const titleBold      = useAppStore(s => s.titleBold)
+  const titleItalic    = useAppStore(s => s.titleItalic)
   const fps            = useAppStore(s => s.fps)
   const isRendering    = useAppStore(s => s.isRendering)
   const logs           = useAppStore(s => s.logs)
@@ -140,6 +144,10 @@ export default function StepExport() {
         output_path: outPath,
         cover_image_path: coverImagePath || null,
         zones: toZonesDto(zones),
+        title_color: titleColor,
+        title_align: titleAlign,
+        title_bold: titleBold,
+        title_italic: titleItalic,
       })
       useAppStore.setState(s => ({ lastOutput: res, isRendering: false, progress: 100, logs: [...s.logs, `Done: ${res}`] }))
     } catch (e) {

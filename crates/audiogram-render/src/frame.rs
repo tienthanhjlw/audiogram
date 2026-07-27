@@ -5,10 +5,12 @@ use crate::{
         blend, draw_circle_ring, draw_gradient_circle, draw_image_cover_circle,
         draw_image_cover_full, draw_image_cover_rect_topleft, fill_rect,
     },
+    text::{self, TextAlign, TextStyle, TitlePixel},
     wave::render_wave,
 };
 use audiogram_core::contract_gen::{LayoutZone, LayoutZones};
-use audiogram_core::entities::{Layout, WaveStyle};
+use audiogram_core::entities::{Layout, TitleAlign, WaveStyle};
+use cosmic_text::{FontSystem, SwashCache};
 
 /// Decoded RGBA avatar/background image (StepLayout's cover image), decoded
 /// once per render in the app crate's Stage 1 (mirrors the FFT spectrum
@@ -40,6 +42,160 @@ fn avatar_geom(z: LayoutZone, w: usize, h: usize) -> (i32, i32, i32) {
     let cy = (h as f32 * (z.y + z.h / 2.0)) as i32;
     let r  = ((w as f32 * z.w).min(h as f32 * z.h) / 2.0) as i32;
     (cx, cy, r)
+}
+
+// ── Title text ────────────────────────────────────────────────────────────
+
+/// Title style, mirroring the store fields RenderJob now carries
+/// (PHASE3_TASKS.md T4 — fixes these being a no-op at export: the old
+/// ffmpeg `drawtext` path hardcoded white, fixed per-layout centering, no
+/// bold/italic).
+pub struct TitleSpec {
+    pub text: String,
+    pub color: [u8; 3],
+    pub align: TitleAlign,
+    pub bold: bool,
+    pub italic: bool,
+    /// Percentage multiplier, 70-140, default 100 — matches
+    /// RenderJob.font_size_pct exactly (same field, same title use).
+    pub font_size_pct: u32,
+}
+
+const TITLE_MAX_LINES: usize = 2; // TODO(p3-t5): unify with the preview's wrapText via contract/text.json
+
+fn title_align_to_text_align(align: TitleAlign) -> TextAlign {
+    match align {
+        TitleAlign::Left => TextAlign::Left,
+        TitleAlign::Center => TextAlign::Center,
+        TitleAlign::Right => TextAlign::Right,
+    }
+}
+
+/// Vertically centers a text block of `line_count` lines (each
+/// `style.size_px * style.line_height_ratio` tall) around `y_center`,
+/// returning the rect's top-left y — cosmic-text lays text out top-down
+/// inside its box, unlike canvas `fillText`'s baseline-anchored y, so
+/// centering means computing the block's total height first.
+fn centered_rect_y(y_center: f32, line_count: usize, style: &TextStyle) -> f32 {
+    let total_h = line_count as f32 * style.size_px * style.line_height_ratio;
+    y_center - total_h / 2.0
+}
+
+/// Precomputes the title's pixels once per render (constant across every
+/// frame — mirrors `compute_frame_luts`' role for the vignette). Returns an
+/// empty `Vec` when there's no title text. Each layout's box/style mirrors
+/// `domain/preview/renderer.ts`'s corresponding `draw*` function exactly —
+/// see PHASE3_TASKS.md T4 for the per-layout derivation.
+#[allow(clippy::too_many_arguments)]
+pub fn compute_title_pixels(
+    w: usize,
+    h: usize,
+    layout: Layout,
+    zones: &LayoutZones,
+    spec: Option<&TitleSpec>,
+    font_system: &mut FontSystem,
+    swash_cache: &mut SwashCache,
+) -> Vec<TitlePixel> {
+    let Some(spec) = spec else { return vec![] };
+    if spec.text.is_empty() {
+        return vec![];
+    }
+    let (w_f, h_f) = (w as f32, h as f32);
+    let size_px = h_f * 0.058 * (spec.font_size_pct as f32 / 100.0);
+
+    match layout {
+        Layout::Karaoke => {
+            // drawKaraoke's `else if (dc.title)` branch — big centered
+            // title, only ever shown when nothing is captioned yet. Always
+            // white/center/bold in the preview for this branch specifically
+            // (independent of the user's title color/align/bold/italic —
+            // those style the *captions* text in this layout instead, via
+            // libass, not this fallback title).
+            let tz = zones.title;
+            let style = TextStyle {
+                size_px: h_f * 0.070 * (spec.font_size_pct as f32 / 100.0),
+                color: [255, 255, 255],
+                alpha: 0.85,
+                bold: true,
+                italic: false,
+                align: TextAlign::Center,
+                line_height_ratio: 1.4,
+            };
+            let mw = w_f * tz.w;
+            let y_center = h_f * (tz.y + tz.h / 2.0);
+            let lines = text::measure_lines(&spec.text, &style, mw, font_system).min(TITLE_MAX_LINES);
+            let rect = (w_f * tz.x, centered_rect_y(y_center, lines, &style), mw, lines as f32 * style.size_px * style.line_height_ratio);
+            text::rasterize_sparse(w, h, rect, &spec.text, &style, font_system, swash_cache)
+        }
+        Layout::Brand => {
+            // drawBrand always left-aligns from the title zone's own left
+            // edge, regardless of titleAlign (that control only affects
+            // Spotify/Split/Minimal/FullBg in the preview too).
+            let tz = zones.title;
+            let style = TextStyle {
+                size_px,
+                color: spec.color,
+                alpha: 1.0,
+                bold: spec.bold,
+                italic: spec.italic,
+                align: TextAlign::Left,
+                line_height_ratio: 1.4,
+            };
+            let mw = w_f * tz.w;
+            let y_center = h_f * (tz.y + tz.h / 2.0);
+            let lines = text::measure_lines(&spec.text, &style, mw, font_system).min(TITLE_MAX_LINES);
+            let rect = (w_f * tz.x, centered_rect_y(y_center, lines, &style), mw, lines as f32 * style.size_px * style.line_height_ratio);
+            text::rasterize_sparse(w, h, rect, &spec.text, &style, font_system, swash_cache)
+        }
+        Layout::FullBg => {
+            // drawFullBg calls drawTitle(dc, yCenter) with no maxW override
+            // → the preview's own default-mw fallback (W*0.84, canvas-
+            // centered) applies here, NOT the title zone's own width
+            // (0.80) — ported exactly as the preview behaves today rather
+            // than "fixed" to match the zone, to avoid introducing a new
+            // drift (this exact mismatch is flagged for T5's parity audit).
+            let tz = zones.title;
+            let style = TextStyle {
+                size_px,
+                color: spec.color,
+                alpha: 1.0,
+                bold: spec.bold,
+                italic: spec.italic,
+                align: title_align_to_text_align(spec.align),
+                line_height_ratio: 1.4,
+            };
+            let mw = w_f * 0.84;
+            let rx = (w_f - mw) / 2.0;
+            let y_center = h_f * (tz.y + tz.h / 2.0);
+            let lines = text::measure_lines(&spec.text, &style, mw, font_system).min(TITLE_MAX_LINES);
+            let rect = (rx, centered_rect_y(y_center, lines, &style), mw, lines as f32 * style.size_px * style.line_height_ratio);
+            text::rasterize_sparse(w, h, rect, &spec.text, &style, font_system, swash_cache)
+        }
+        Layout::Spotify | Layout::Split | Layout::Minimal => {
+            // The title zone itself IS the effective box for these three:
+            // the preview's per-align `cx` formula (center → W/2, left →
+            // (W-mw)/2, right → (W+mw)/2, using maxW = W·tz.w) reduces to
+            // exactly the zone's own rect because every one of these
+            // layouts' title zones is either canvas-centered (Spotify/
+            // Minimal — verified against contract/zones.json) or targeted
+            // at its own zone center via an explicit xCenter (Split).
+            let tz = zones.title;
+            let style = TextStyle {
+                size_px,
+                color: spec.color,
+                alpha: 1.0,
+                bold: spec.bold,
+                italic: spec.italic,
+                align: title_align_to_text_align(spec.align),
+                line_height_ratio: 1.4,
+            };
+            let mw = w_f * tz.w;
+            let y_center = h_f * (tz.y + tz.h / 2.0);
+            let lines = text::measure_lines(&spec.text, &style, mw, font_system).min(TITLE_MAX_LINES);
+            let rect = (w_f * tz.x, centered_rect_y(y_center, lines, &style), mw, lines as f32 * style.size_px * style.line_height_ratio);
+            text::rasterize_sparse(w, h, rect, &spec.text, &style, font_system, swash_cache)
+        }
+    }
 }
 
 // ── Pre-computed per-encode lookup tables ─────────────────────────────────────
@@ -128,6 +284,7 @@ pub fn render_frame_into(
     luts: &FrameLuts,
     cover: Option<&CoverImage>,
     zones: &LayoutZones,
+    title_pixels: &[TitlePixel],
 ) {
     debug_assert_eq!(buf.len(), w * h * 4);
 
@@ -267,5 +424,18 @@ pub fn render_frame_into(
             let wz = zones.waveform;
             wave(buf, w as f32 * wz.x, h as f32 * wz.y, w as f32 * wz.w, h as f32 * wz.h);
         }
+    }
+
+    // ── Stage C: title (topmost layer) ───────────────────────────────────────
+    // Precomputed once per render by compute_title_pixels (constant across
+    // every frame) — this is just a cheap blend of that small pixel list,
+    // matching where ffmpeg's `drawtext` used to sit in the filter graph:
+    // on top of everything else this crate draws (PHASE3_TASKS.md T4).
+    for p in title_pixels {
+        let (x, y) = (p.x as usize, p.y as usize);
+        if x >= w || y >= h {
+            continue;
+        }
+        blend(buf, (y * w + x) * 4, p.rgb, p.alpha);
     }
 }

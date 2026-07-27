@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use specta::Type;
 use crate::{contract_gen::{default_zones, LayoutZones}, util::hex_to_rgb, AppError};
-use super::{Layout, WaveStyle};
+use super::{Layout, TitleAlign, WaveStyle};
 
 /// Raw DTO from Tauri IPC — mirrors the JS object sent by the frontend verbatim.
 #[derive(Deserialize, Debug, Type)]
@@ -31,6 +31,16 @@ pub struct RenderJobDto {
     /// falls back to `default_zones(layout)`, the same contract-generated data
     /// the preview's DEFAULT_ZONES comes from.
     pub zones: Option<LayoutZones>,
+    /// Title text style — mirrors the store's `titleColor`/`titleAlign`/
+    /// `titleBold`/`titleItalic` (PHASE3_TASKS.md T4, fixes the title
+    /// inspector's controls being a no-op at export: the old ffmpeg
+    /// `drawtext` path hardcoded white text, fixed per-layout centering,
+    /// never bold/italic). `None` for each means the store's own default
+    /// (white / center / not bold / not italic).
+    pub title_color: Option<String>,
+    pub title_align: Option<String>,
+    pub title_bold: Option<bool>,
+    pub title_italic: Option<bool>,
 }
 
 /// Validated domain entity — strings parsed to enums, hex colors decoded, defaults applied.
@@ -53,6 +63,10 @@ pub struct RenderJob {
     pub output_path:   String,
     pub cover_image_path: Option<String>,
     pub zones: LayoutZones,
+    pub title_color: [u8; 3],
+    pub title_align: TitleAlign,
+    pub title_bold: bool,
+    pub title_italic: bool,
 }
 
 impl TryFrom<RenderJobDto> for RenderJob {
@@ -75,6 +89,11 @@ impl TryFrom<RenderJobDto> for RenderJob {
         let zones = dto.zones.unwrap_or_else(|| {
             default_zones(layout_str).expect("layout_str already validated by Layout::try_from")
         });
+        let title_align = dto.title_align
+            .as_deref()
+            .map(TitleAlign::try_from)
+            .transpose()?
+            .unwrap_or_default();
 
         Ok(Self {
             bg_color:      hex_to_rgb(&dto.bg_color),
@@ -93,6 +112,10 @@ impl TryFrom<RenderJobDto> for RenderJob {
             output_path:   dto.output_path,
             cover_image_path: dto.cover_image_path.filter(|p| !p.is_empty()),
             zones,
+            title_color: dto.title_color.as_deref().map(hex_to_rgb).unwrap_or([255, 255, 255]),
+            title_align,
+            title_bold: dto.title_bold.unwrap_or(false),
+            title_italic: dto.title_italic.unwrap_or(false),
         })
     }
 }
@@ -119,6 +142,10 @@ mod tests {
             output_path: "/tmp/out.mp4".into(),
             cover_image_path: None,
             zones,
+            title_color: None,
+            title_align: None,
+            title_bold: None,
+            title_italic: None,
         }
     }
 
@@ -146,5 +173,44 @@ mod tests {
         let job = RenderJob::try_from(dto).expect("valid dto");
         assert_eq!(job.zones, custom);
         assert_ne!(job.zones, default_zones("minimal").unwrap());
+    }
+
+    /// PHASE3_TASKS.md T4 — title_color/align/bold/italic default to the
+    /// same values design.slice.ts's store does (white/center/false/false)
+    /// when the DTO carries none, matching a project that never touched
+    /// the Title inspector.
+    #[test]
+    fn title_style_defaults_match_the_store() {
+        let dto = minimal_dto(Some("minimal"), None);
+        let job = RenderJob::try_from(dto).expect("valid dto");
+        assert_eq!(job.title_color, [255, 255, 255]);
+        assert_eq!(job.title_align, TitleAlign::Center);
+        assert!(!job.title_bold);
+        assert!(!job.title_italic);
+    }
+
+    /// A DTO that does carry title style must use it verbatim — this is the
+    /// actual bug T4 fixes: previously nothing in RenderJob carried these at
+    /// all, so the Design mode Title inspector's controls were a no-op at
+    /// export time.
+    #[test]
+    fn title_style_uses_dto_values_when_present() {
+        let mut dto = minimal_dto(Some("minimal"), None);
+        dto.title_color = Some("#FF0000".into());
+        dto.title_align = Some("right".into());
+        dto.title_bold = Some(true);
+        dto.title_italic = Some(true);
+        let job = RenderJob::try_from(dto).expect("valid dto");
+        assert_eq!(job.title_color, [255, 0, 0]);
+        assert_eq!(job.title_align, TitleAlign::Right);
+        assert!(job.title_bold);
+        assert!(job.title_italic);
+    }
+
+    #[test]
+    fn rejects_an_invalid_title_align() {
+        let mut dto = minimal_dto(Some("minimal"), None);
+        dto.title_align = Some("diagonal".into());
+        assert!(RenderJob::try_from(dto).is_err());
     }
 }

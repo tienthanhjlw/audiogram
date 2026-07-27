@@ -68,6 +68,26 @@ pub fn new_swash_cache() -> SwashCache {
     SwashCache::new()
 }
 
+/// Shapes `text` at `width_px` (no rendering) and returns how many lines it
+/// wraps to. Used to vertically center a text block *before* choosing its
+/// final rect — cosmic-text lays text out top-down inside its box, so
+/// centering a block of known height around a target y requires knowing the
+/// line count first (frame.rs's title placement, PHASE3_TASKS.md T4).
+pub fn measure_lines(text: &str, style: &TextStyle, width_px: f32, font_system: &mut FontSystem) -> usize {
+    if text.is_empty() {
+        return 0;
+    }
+    let metrics = Metrics::new(style.size_px, style.size_px * style.line_height_ratio);
+    let mut buffer = Buffer::new(font_system, metrics);
+    buffer.set_size(Some(width_px), None); // unbounded height — count every wrapped line
+    let weight = if style.bold { Weight::BOLD } else { Weight::NORMAL };
+    let font_style = if style.italic { FontStyle::Italic } else { FontStyle::Normal };
+    let attrs = Attrs::new().family(Family::Name("Inter")).weight(weight).style(font_style);
+    buffer.set_text(text, &attrs, Shaping::Advanced, None);
+    buffer.shape_until_scroll(font_system, false);
+    buffer.layout_runs().count()
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TextAlign {
     Left,
@@ -91,22 +111,27 @@ pub struct TextStyle {
     pub line_height_ratio: f32,
 }
 
-/// Rasterizes `text`, word-wrapped to `rect`'s width, into `buf` (a
-/// `w × h × 4` RGBA frame). Lines beyond `rect`'s height are simply not
-/// laid out (cosmic-text only shapes as many lines as fit the bounded
-/// height) — callers wanting an exact "2 lines max" cap should size
-/// `rect.3` to `2 * size_px * line_height_ratio`. Returns how many lines
-/// were actually laid out (0 for empty text).
-#[allow(clippy::too_many_arguments)]
-pub fn draw_text(
-    buf: &mut [u8],
-    w: usize,
-    h: usize,
+/// One touched pixel from a rasterize pass — `rasterize_sparse`'s output
+/// shape, keyed for a cheap per-frame blend pass (see that function's doc).
+pub struct TitlePixel {
+    pub x: u32,
+    pub y: u32,
+    pub rgb: [u8; 3],
+    pub alpha: f32,
+}
+
+/// Shared cosmic-text plumbing: builds and shapes a `Buffer` for `text`
+/// inside `rect`, then calls `emit(absolute_x, absolute_y, rgb, alpha)` for
+/// every covered pixel — `rect`'s own (x, y) offset is already folded in, so
+/// callers never see cosmic-text's rect-local coordinates. Returns the
+/// number of laid-out lines (0 for empty text).
+fn rasterize<F: FnMut(i32, i32, [u8; 3], f32)>(
     rect: (f32, f32, f32, f32),
     text: &str,
     style: &TextStyle,
     font_system: &mut FontSystem,
     swash_cache: &mut SwashCache,
+    mut emit: F,
 ) -> usize {
     if text.is_empty() || style.alpha <= 0.0 {
         return 0;
@@ -137,22 +162,76 @@ pub fn draw_text(
         }
         let rgb = [c.r(), c.g(), c.b()];
         for oy in 0..gh as i32 {
-            let py = ry as i32 + gy + oy;
-            if py < 0 || py as usize >= h {
-                continue;
-            }
             for ox in 0..gw as i32 {
-                let px = rx as i32 + gx + ox;
-                if px < 0 || px as usize >= w {
-                    continue;
-                }
-                let idx = (py as usize * w + px as usize) * 4;
-                blend(buf, idx, rgb, a);
+                emit(rx as i32 + gx + ox, ry as i32 + gy + oy, rgb, a);
             }
         }
     });
 
     buffer.layout_runs().count()
+}
+
+/// Rasterizes `text`, word-wrapped to `rect`'s width, directly into `buf` (a
+/// `w × h × 4` RGBA frame). Lines beyond `rect`'s height are simply not
+/// laid out (cosmic-text only shapes as many lines as fit the bounded
+/// height) — callers wanting an exact "2 lines max" cap should size
+/// `rect.3` to `2 * size_px * line_height_ratio`. Returns how many lines
+/// were actually laid out (0 for empty text).
+///
+/// Prefer `rasterize_sparse` for anything called once and blended into many
+/// frames (e.g. a render job's title, constant across the whole video) —
+/// this one is for one-shot uses (tests, thumbnails) where redoing the
+/// layout per call doesn't matter.
+#[allow(clippy::too_many_arguments)]
+pub fn draw_text(
+    buf: &mut [u8],
+    w: usize,
+    h: usize,
+    rect: (f32, f32, f32, f32),
+    text: &str,
+    style: &TextStyle,
+    font_system: &mut FontSystem,
+    swash_cache: &mut SwashCache,
+) -> usize {
+    rasterize(rect, text, style, font_system, swash_cache, |x, y, rgb, a| {
+        if x < 0 || y < 0 {
+            return;
+        }
+        let (x, y) = (x as usize, y as usize);
+        if x >= w || y >= h {
+            return;
+        }
+        blend(buf, (y * w + x) * 4, rgb, a);
+    })
+}
+
+/// Same layout/shaping as `draw_text`, but collects touched pixels into a
+/// `Vec` instead of blending into a frame buffer immediately — for a title
+/// that's identical across every frame of a render (frame.rs's
+/// `compute_frame_luts` precompute pattern), rasterize once here and have
+/// the per-frame (possibly parallel/rayon) loop just blend this small list,
+/// instead of running cosmic-text — not `Sync` — on every frame/thread.
+pub fn rasterize_sparse(
+    w: usize,
+    h: usize,
+    rect: (f32, f32, f32, f32),
+    text: &str,
+    style: &TextStyle,
+    font_system: &mut FontSystem,
+    swash_cache: &mut SwashCache,
+) -> Vec<TitlePixel> {
+    let mut pixels = Vec::new();
+    rasterize(rect, text, style, font_system, swash_cache, |x, y, rgb, a| {
+        if x < 0 || y < 0 {
+            return;
+        }
+        let (x, y) = (x as usize, y as usize);
+        if x >= w || y >= h {
+            return;
+        }
+        pixels.push(TitlePixel { x: x as u32, y: y as u32, rgb, alpha: a });
+    });
+    pixels
 }
 
 #[cfg(test)]
@@ -312,5 +391,35 @@ mod tests {
         }
         let per_line_ms = start.elapsed().as_secs_f64() * 1000.0 / ITERS as f64;
         eprintln!("draw_text: {per_line_ms:.3}ms/line for a 30-char line (budget: 2ms/line)");
+    }
+
+    /// PHASE3_TASKS.md T4 relies on `rasterize_sparse` producing exactly the
+    /// pixels `draw_text` would've blended directly — this is what lets
+    /// frame.rs precompute the title once and blend the (small) result into
+    /// every frame instead of calling cosmic-text per-frame.
+    #[test]
+    fn rasterize_sparse_matches_draw_text() {
+        let (w, h) = (200usize, 80usize);
+        let rect = (4.0, 4.0, 192.0, 72.0);
+        let text = "Parity";
+        let style = default_style();
+
+        let mut fs = new_font_system();
+        let mut cache = new_swash_cache();
+        let mut direct_buf = blank_buf(w, h);
+        draw_text(&mut direct_buf, w, h, rect, text, &style, &mut fs, &mut cache);
+
+        let mut fs2 = new_font_system();
+        let mut cache2 = new_swash_cache();
+        let pixels = rasterize_sparse(w, h, rect, text, &style, &mut fs2, &mut cache2);
+        assert!(!pixels.is_empty(), "expected some pixels for non-empty text");
+
+        let mut sparse_buf = blank_buf(w, h);
+        for p in &pixels {
+            let idx = (p.y as usize * w + p.x as usize) * 4;
+            blend(&mut sparse_buf, idx, p.rgb, p.alpha);
+        }
+
+        assert_eq!(direct_buf, sparse_buf, "rasterize_sparse should produce the same pixels as draw_text");
     }
 }

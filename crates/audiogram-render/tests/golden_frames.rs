@@ -121,6 +121,7 @@ fn render_case(layout: Layout, layout_name: &str, style: WaveStyle, t_sec: f64, 
         &luts,
         None,
         &zones,
+        &[], // no title — golden goldens intentionally don't cover text yet (T5)
     );
     buf
 }
