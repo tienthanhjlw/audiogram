@@ -41,27 +41,43 @@ const INTER_BOLD: &[u8] = include_bytes!("../assets/fonts/Inter-Bold.ttf");
 const INTER_ITALIC: &[u8] = include_bytes!("../assets/fonts/Inter-Italic.ttf");
 const INTER_BOLD_ITALIC: &[u8] = include_bytes!("../assets/fonts/Inter-BoldItalic.ttf");
 
-/// A `FontSystem` seeded with exactly the 4 bundled Inter faces — no system
-/// font directory scan (`fontdb::Database::new()` starts empty; we never
-/// call `load_system_fonts()`), so text rendering is deterministic across
-/// machines instead of depending on whatever happens to be installed.
+const LIBERATION_SANS_REGULAR: &[u8] = include_bytes!("../assets/fonts/LiberationSans-Regular.ttf");
+const LIBERATION_SANS_BOLD: &[u8] = include_bytes!("../assets/fonts/LiberationSans-Bold.ttf");
+const LIBERATION_SANS_ITALIC: &[u8] = include_bytes!("../assets/fonts/LiberationSans-Italic.ttf");
+const LIBERATION_SERIF_REGULAR: &[u8] = include_bytes!("../assets/fonts/LiberationSerif-Regular.ttf");
+const LIBERATION_SERIF_BOLD: &[u8] = include_bytes!("../assets/fonts/LiberationSerif-Bold.ttf");
+const LIBERATION_SERIF_ITALIC: &[u8] = include_bytes!("../assets/fonts/LiberationSerif-Italic.ttf");
+
+/// A `FontSystem` seeded with bundled font families:
+/// - Inter: 4 faces (Regular, Bold, Italic, BoldItalic) — default fallback
+/// - Liberation Sans: 3 faces (Regular, Bold, Italic) — maps to Arial/Verdana
+/// - Liberation Serif: 3 faces (Regular, Bold, Italic) — maps to Georgia
 ///
-/// TODO(p3-t3): the Design mode Title inspector currently offers 4 font
-/// choices — Arial, Georgia, Impact, Verdana (apps/desktop's
-/// DesignInspector.tsx FONT_OPTIONS) — none of which are bundled here; only
-/// Inter is. This is a product decision, not a technical one (bundling the
-/// other 3 is possible — they're common enough to source under permissive
-/// licenses — but adds ~4x the font payload for faces that may get replaced
-/// anyway once export always uses a real bundled font instead of relying on
-/// whatever's on the exporting machine). T4 (wiring this into frame.rs) will
-/// fall back every `font_name` value to Inter until this is decided; flagged
-/// in the P3-T3 commit/report for a human to weigh in on, per
-/// PHASE3_TASKS.md's luật A.5 rather than silently picking a direction.
+/// No system font directory scan — deterministic across machines. See Phase 4 T1
+/// decision: bundling Liberation fonts (OFL) for Arial/Georgia/Verdana support.
 pub fn new_font_system() -> FontSystem {
-    let sources = [INTER_REGULAR, INTER_BOLD, INTER_ITALIC, INTER_BOLD_ITALIC]
+    // Collect all font bytes as binary sources. cosmic-text's FontSystem::new_with_fonts
+    // auto-discovers family/weight/style from the font metadata in each TTF.
+    let sources = [
+        INTER_REGULAR, INTER_BOLD, INTER_ITALIC, INTER_BOLD_ITALIC,
+        LIBERATION_SANS_REGULAR, LIBERATION_SANS_BOLD, LIBERATION_SANS_ITALIC,
+        LIBERATION_SERIF_REGULAR, LIBERATION_SERIF_BOLD, LIBERATION_SERIF_ITALIC,
+    ]
         .into_iter()
         .map(|bytes| cosmic_text::fontdb::Source::Binary(Arc::new(bytes.to_vec())));
     FontSystem::new_with_fonts(sources)
+}
+
+/// Map user-facing font names to bundled family names.
+/// Fallback is "Inter" for any unknown name.
+pub fn resolve_font_family(font_name: &str) -> &'static str {
+    match font_name {
+        "Arial" | "arial" => "Liberation Sans",
+        "Georgia" | "georgia" => "Liberation Serif",
+        "Verdana" | "verdana" => "Liberation Sans",
+        "Impact" | "impact" => "Liberation Sans", // Liberation Sans is the closest substitute
+        _ => "Inter",
+    }
 }
 
 pub fn new_swash_cache() -> SwashCache {
@@ -82,7 +98,8 @@ pub fn measure_lines(text: &str, style: &TextStyle, width_px: f32, font_system: 
     buffer.set_size(Some(width_px), None); // unbounded height — count every wrapped line
     let weight = if style.bold { Weight::BOLD } else { Weight::NORMAL };
     let font_style = if style.italic { FontStyle::Italic } else { FontStyle::Normal };
-    let attrs = Attrs::new().family(Family::Name("Inter")).weight(weight).style(font_style);
+    let family = resolve_font_family(&style.font_name);
+    let attrs = Attrs::new().family(Family::Name(family)).weight(weight).style(font_style);
     buffer.set_text(text, &attrs, Shaping::Advanced, None);
     buffer.shape_until_scroll(font_system, false);
     buffer.layout_runs().count()
@@ -109,6 +126,9 @@ pub struct TextStyle {
     /// preview's `drawTitle`/`drawSubtitle` use so wrapping breaks at the
     /// same point on both sides.
     pub line_height_ratio: f32,
+    /// Font family name (e.g., "Arial", "Georgia", "Inter"). Mapped to actual
+    /// bundled family via resolve_font_family().
+    pub font_name: String,
 }
 
 /// One touched pixel from a rasterize pass — `rasterize_sparse`'s output
@@ -149,7 +169,8 @@ fn rasterize<F: FnMut(i32, i32, [u8; 3], f32)>(
         TextAlign::Center => cosmic_text::Align::Center,
         TextAlign::Right => cosmic_text::Align::Right,
     };
-    let attrs = Attrs::new().family(Family::Name("Inter")).weight(weight).style(font_style);
+    let family = resolve_font_family(&style.font_name);
+    let attrs = Attrs::new().family(Family::Name(family)).weight(weight).style(font_style);
     buffer.set_text(text, &attrs, Shaping::Advanced, Some(align));
 
     let color = CosmicColor::rgb(style.color[0], style.color[1], style.color[2]);
@@ -255,6 +276,7 @@ mod tests {
             italic: false,
             align: TextAlign::Left,
             line_height_ratio: 1.4,
+            font_name: "Inter".to_string(),
         }
     }
 

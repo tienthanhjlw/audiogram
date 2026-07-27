@@ -59,6 +59,9 @@ pub struct TitleSpec {
     /// Percentage multiplier, 70-140, default 100 — matches
     /// RenderJob.font_size_pct exactly (same field, same title use).
     pub font_size_pct: u32,
+    /// Font family name (e.g., "Arial", "Georgia") — passed to cosmic-text
+    /// font resolution. Matches RenderJob.font_name.
+    pub font_name: String,
 }
 
 fn title_align_to_text_align(align: TitleAlign) -> TextAlign {
@@ -118,6 +121,7 @@ pub fn compute_title_pixels(
                 italic: false,
                 align: TextAlign::Center,
                 line_height_ratio: TITLE_LINE_HEIGHT,
+                font_name: spec.font_name.clone(),
             };
             let mw = w_f * tz.w;
             let y_center = h_f * (tz.y + tz.h / 2.0);
@@ -138,6 +142,7 @@ pub fn compute_title_pixels(
                 italic: spec.italic,
                 align: TextAlign::Left,
                 line_height_ratio: TITLE_LINE_HEIGHT,
+                font_name: spec.font_name.clone(),
             };
             let mw = w_f * tz.w;
             let y_center = h_f * (tz.y + tz.h / 2.0);
@@ -161,6 +166,7 @@ pub fn compute_title_pixels(
                 italic: spec.italic,
                 align: title_align_to_text_align(spec.align),
                 line_height_ratio: TITLE_LINE_HEIGHT,
+                font_name: spec.font_name.clone(),
             };
             let mw = w_f * 0.84;
             let rx = (w_f - mw) / 2.0;
@@ -186,6 +192,7 @@ pub fn compute_title_pixels(
                 italic: spec.italic,
                 align: title_align_to_text_align(spec.align),
                 line_height_ratio: TITLE_LINE_HEIGHT,
+                font_name: spec.font_name.clone(),
             };
             let mw = w_f * tz.w;
             let y_center = h_f * (tz.y + tz.h / 2.0);

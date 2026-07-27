@@ -223,6 +223,7 @@ pub fn encode_blocking(
             bold: job.title_bold,
             italic: job.title_italic,
             font_size_pct: job.font_size_pct,
+            font_name: job.font_name.clone(),
         };
         compute_title_pixels(w, h, job.layout, &job.zones, Some(&spec), &mut font_system, &mut swash_cache)
     }).unwrap_or_default();

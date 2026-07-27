@@ -169,6 +169,7 @@ mod tests {
             bold: false,
             italic: false,
             font_size_pct: 100,
+            font_name: "Arial".to_string(),
         }
     }
 
