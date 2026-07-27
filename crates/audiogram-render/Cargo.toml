@@ -6,6 +6,12 @@ edition = "2021"
 [dependencies]
 audiogram-core = { path = "../audiogram-core" }
 audiogram-spectrum = { path = "../audiogram-spectrum" }
+# PHASE3_TASKS.md T3/OPTIMIZATION_PLAN.md F1 — rasterizes title text directly
+# in Rust instead of shelling out to ffmpeg's `drawtext` (which depends on
+# fontconfig finding a system font at export time — a source of preview↔
+# export drift when the requested font isn't installed). Bundled Inter
+# (assets/fonts/, SIL OFL) removes the fontconfig dependency entirely.
+cosmic-text = "0.19"
 
 [dev-dependencies]
 # Golden-frame parity test (tests/golden_frames.rs, OPTIMIZATION_PLAN.md F2)

@@ -7,6 +7,7 @@
 pub mod frame;
 pub mod pixel;
 pub mod progress;
+pub mod text;
 pub mod wave;
 
 pub use progress::{NullSink, ProgressSink};
