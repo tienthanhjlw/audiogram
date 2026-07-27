@@ -14,7 +14,11 @@ export interface RenderSlice {
   isRendering: boolean
   lastOutput: string
   /** Legacy plain 0-100 number from the 'render_progress' event
-   * (core/ipc/events.ts) — kept as-is, StepExport.tsx already reads it. */
+   * (core/ipc/events.ts) — no UI reads this anymore since Toolbar.tsx
+   * switched to `progressPct` (P3-T11) and StepExport.tsx (its last reader)
+   * was deleted (P3-T13). Left in place rather than removed mid-cleanup;
+   * safe to delete along with the 'render_progress' listener whenever
+   * someone next touches this file. */
   progress: number
   /** T9 — structured render_event feed (TECH_ARCHITECTURE.md §2.3),
    * additive: not read by any Phase-1 component yet, for the Export sheet

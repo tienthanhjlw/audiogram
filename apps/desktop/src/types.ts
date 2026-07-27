@@ -1,4 +1,3 @@
-export type Step = 'upload' | 'layout' | 'transcript' | 'export'
 export type WaveStyle = 'bar' | 'line' | 'mirror' | 'dot' | 'neon' | 'orb' | 'pulse' | 'eq' | 'player'
 export type CanvasSize = '16:9' | '1:1' | '9:16'
 export type LayoutTemplate = 'spotify' | 'split' | 'minimal' | 'fullbg' | 'karaoke' | 'brand'
@@ -47,41 +46,6 @@ export interface LayoutZones {
 // re-exported here so every existing `import { DEFAULT_ZONES } from
 // '../types'` call site keeps working unchanged.
 export { DEFAULT_ZONES } from '@audiogram/contract'
-
-export interface AppState {
-  step: Step
-  audioPath: string
-  audioName: string
-  title: string
-  canvasSize: CanvasSize
-  layoutTemplate: LayoutTemplate
-  coverImagePath: string
-  waveStyle: WaveStyle
-  waveColor: string
-  bgColor: string
-  fps: number
-  logs: string[]
-  isRendering: boolean
-  lastOutput: string
-  // Whisper
-  segments: Segment[]
-  srtPath: string
-  isTranscribing: boolean
-  showSubtitles: boolean
-  whisperModel: string
-  peaks: number[]
-  fontSize: number         // percentage multiplier, 70–140, default 100
-  fontName: string         // "Arial" | "Georgia" | "Impact" | "Verdana"
-  karaokeEnabled: boolean
-  karaokeColor: string
-  subtitleColor: string
-  subtitleYPct: number | null   // 0–1 fraction from top; null = layout default
-  zones: LayoutZones | null     // null = use DEFAULT_ZONES[layoutTemplate]
-  titleColor:  string
-  titleAlign:  'left' | 'center' | 'right'
-  titleBold:   boolean
-  titleItalic: boolean
-}
 
 export const CANVAS_SIZES: Record<CanvasSize, { w: number; h: number; label: string }> = {
   '16:9': { w: 1280, h: 720,  label: '16:9  YouTube' },

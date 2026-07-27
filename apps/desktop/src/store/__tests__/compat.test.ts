@@ -4,9 +4,12 @@ import { useAppStore } from '../index'
 // Every field/action that existed on the flat pre-Phase-1 store
 // (src/store.ts before T7 — see git history), hardcoded rather than
 // derived, so this test fails loudly if a future refactor silently drops
-// one instead of just not adding it.
+// one instead of just not adding it. `step`/`goTo`/`next`/`back` were the
+// legacy 4-step wizard's own fields — dropped from this list in P3-T13
+// once StepTranscript/StepExport (their last callers) were deleted; the
+// wizard's shape is no longer a contract worth locking.
 const OLD_DATA_FIELDS = [
-  'step', 'audioPath', 'audioName', 'title', 'canvasSize', 'layoutTemplate',
+  'audioPath', 'audioName', 'title', 'canvasSize', 'layoutTemplate',
   'coverImagePath', 'waveStyle', 'waveColor', 'bgColor', 'fps', 'logs',
   'isRendering', 'lastOutput', 'segments', 'srtPath', 'isTranscribing',
   'showSubtitles', 'whisperModel', 'peaks', 'fontSize', 'fontName',
@@ -14,7 +17,7 @@ const OLD_DATA_FIELDS = [
   'titleColor', 'titleAlign', 'titleBold', 'titleItalic',
 ] as const
 
-const OLD_ACTIONS = ['set', 'goTo', 'next', 'back'] as const
+const OLD_ACTIONS = ['set'] as const
 
 describe('store compat (Phase 1 T7 slice split)', () => {
   beforeEach(() => {
@@ -35,15 +38,11 @@ describe('store compat (Phase 1 T7 slice split)', () => {
     }
   })
 
-  it('goTo/next/back drive the same 4-step sequence as before', () => {
-    useAppStore.getState().goTo('transcript')
-    expect(useAppStore.getState().step).toBe('transcript')
-    useAppStore.getState().next()
-    expect(useAppStore.getState().step).toBe('export')
-    useAppStore.getState().next() // no-op past the end
-    expect(useAppStore.getState().step).toBe('export')
-    useAppStore.getState().back()
-    expect(useAppStore.getState().step).toBe('transcript')
+  it('no longer exposes the legacy 4-step wizard fields (P3-T13)', () => {
+    const state = useAppStore.getState()
+    for (const key of ['step', 'goTo', 'next', 'back']) {
+      expect(state).not.toHaveProperty(key)
+    }
   })
 
   it('set() patches arbitrary fields exactly like the old store', () => {

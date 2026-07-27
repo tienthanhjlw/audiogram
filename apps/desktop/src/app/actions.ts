@@ -59,9 +59,7 @@ function exportProject(): void {
 }
 
 function setMode(mode: Mode): void {
-  const { set, goTo } = useAppStore.getState()
-  set({ mode })
-  goTo(mode === 'design' ? 'layout' : 'transcript')
+  useAppStore.getState().set({ mode })
 }
 
 function togglePlayback(): void {

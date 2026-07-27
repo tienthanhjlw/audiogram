@@ -78,40 +78,26 @@ export default tseslint.config(
 
       // Direct Tauri IPC calls belong in core/ipc only, so the rest of the
       // app talks to one typed facade instead of scattering invoke() calls.
-      'no-restricted-imports': ['warn', {
+      // A hard error repo-wide (P3-T13) — the two legacy components that
+      // needed the `warn` grandfather clause (StepTranscript/StepExport)
+      // are gone.
+      'no-restricted-imports': ['error', {
         paths: [{
           name: '@tauri-apps/api/core',
-          message: 'Import from core/ipc instead of calling @tauri-apps/api/core directly (TECH_ARCHITECTURE §2.3). Still a warning in Phase 1 — legacy Step components have not been migrated yet.',
+          message: 'Import from core/ipc instead of calling @tauri-apps/api/core directly (TECH_ARCHITECTURE §2.3).',
         }],
       }],
     },
   },
 
   // core/ (including core/ipc, the one place allowed to touch the raw Tauri
-  // API) fully replaces the base tauri-import warning above with a React
-  // ban instead — core/ is non-UI app infrastructure.
+  // API) fully replaces the base tauri-import ban above with a React ban
+  // instead — core/ is non-UI app infrastructure.
   {
     files: ['src/core/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': ['error', {
         paths: [{ name: 'react', message: 'core/ is non-UI app infrastructure — it must not depend on React.' }],
-      }],
-    },
-  },
-
-  // features/ and domain/ are all Phase 2+ code with no legacy call sites to
-  // grandfather in (unlike src/components/Step*.tsx, still on the base
-  // `warn`) — the @tauri-apps/api/core ban is a hard error here
-  // (PHASE2_TASKS.md T12 step 3; full-repo `error` is Phase 3, once the
-  // last two Step components are gone).
-  {
-    files: ['src/features/**/*.{ts,tsx}', 'src/domain/**/*.{ts,tsx}'],
-    rules: {
-      'no-restricted-imports': ['error', {
-        paths: [{
-          name: '@tauri-apps/api/core',
-          message: 'Import from core/ipc instead of calling @tauri-apps/api/core directly (TECH_ARCHITECTURE §2.3).',
-        }],
       }],
     },
   },

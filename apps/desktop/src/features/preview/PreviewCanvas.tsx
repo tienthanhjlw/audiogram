@@ -4,8 +4,16 @@ import { useAppStore } from '../../store'
 import { assetUrl } from '../../core/assetUrl'
 import { audioEngine } from '../../core/audio/AudioEngine'
 import { drawFrame, type FrameSpec } from '../../domain/preview/renderer'
-import { DEFAULT_ZONES } from '../../types'
+import { DEFAULT_ZONES, type Segment } from '../../types'
 import { useFftSpectrum } from './useFftSpectrum'
+
+/** Referentially stable stand-in for "no captions to draw". A `[]` literal
+ * written inside a zustand selector is a *new* array on every call, and
+ * zustand v5 compares snapshots with `Object.is` via useSyncExternalStore —
+ * React then sees the store as changed on every render and loops forever
+ * ("The result of getSnapshot should be cached to avoid an infinite loop"),
+ * taking the whole tree down rather than just wasting a render. */
+const NO_SEGMENTS: Segment[] = []
 
 interface PreviewCanvasProps {
   /** Backing canvas resolution's width in px; height derives from `ratio`.
@@ -49,8 +57,16 @@ export function PreviewCanvas({ width, ratio, className, showCaptions = false }:
   const titleItalic    = useAppStore(s => s.titleItalic)
   const peaks          = useAppStore(s => s.peaks)
   const duration       = useAppStore(s => s.duration)
-  const captionSegments = useAppStore(s => showCaptions && s.showSubtitles ? s.segments : [])
-  const karaokeEnabled  = useAppStore(s => showCaptions && s.showSubtitles ? s.karaokeEnabled : false)
+  // Each selector returns either a primitive or the store's own array
+  // reference — never a freshly built one. The caption gating happens
+  // *after* the selectors, not inside them (see NO_SEGMENTS above).
+  const storeSegments   = useAppStore(s => s.segments)
+  const showSubtitles   = useAppStore(s => s.showSubtitles)
+  const storeKaraoke    = useAppStore(s => s.karaokeEnabled)
+
+  const captionsOn      = showCaptions && showSubtitles
+  const captionSegments = captionsOn ? storeSegments : NO_SEGMENTS
+  const karaokeEnabled  = captionsOn && storeKaraoke
 
   const canvasRef    = useRef<HTMLCanvasElement>(null)
   const coverImgRef  = useRef<HTMLImageElement | null>(null)

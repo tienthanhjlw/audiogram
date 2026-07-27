@@ -2,8 +2,8 @@
 // wrap existing WAVE_COLORS/BG_COLORS (types.ts). `subtitle`/`karaoke` are
 // moved verbatim (PHASE2_TASKS.md T1 step 4 — "copy giá trị nguyên văn")
 // from StepTranscript.tsx's former local SUBTITLE_COLORS/KARAOKE_COLORS
-// constants; StepTranscript now imports them from here instead of
-// declaring its own copy.
+// constants (StepTranscript itself was deleted in P3-T13 — CaptionsPanel/
+// CaptionsInspector import them from here now).
 import { BG_COLORS, WAVE_COLORS } from '../../types'
 import { palettePoint, type PaletteExtension } from '../kernel'
 
