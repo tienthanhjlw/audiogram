@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
+import { getCurrentWindow, ProgressBarStatus } from '@tauri-apps/api/window'
+import { stat } from '@tauri-apps/plugin-fs'
+import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification'
 import { useAppStore } from '../../store'
 import { CANVAS_SIZES, type CanvasSize } from '../../types'
 import { estimateSize, estimateTime } from '../../domain/export/estimate'
@@ -12,11 +15,14 @@ const FORMAT_OPTIONS = (Object.keys(CANVAS_SIZES) as CanvasSize[]).map(id => ({
 }))
 const FPS_OPTIONS = [24, 30, 60].map(f => ({ value: String(f), label: String(f) }))
 
-// features/export/ExportSheet.tsx — UI_DESIGN_SPEC.md §7. State A (p3-t10)
-// + State B (this task, p3-t11 — rendering checklist/ETA/cancel/minimize).
-// State C/D (success/error) still get the p3-t10 placeholder views; the
-// real ones are p3-t12, alongside dock progress/native notification/close
-// guard.
+// features/export/ExportSheet.tsx — UI_DESIGN_SPEC.md §7, all 4 states:
+// A (p3-t10, settings), B (p3-t11, rendering checklist/ETA/cancel/minimize),
+// C/D (this task, p3-t12 — success/error) + this task's OS integration:
+// dock/taskbar progress (Tauri's setProgressBar) and a native "Export
+// complete" notification when the app isn't focused. The close-window
+// guard (§8.3) is a separate always-mounted component, CloseGuardDialog —
+// it has to react to `isRendering` even while this sheet is closed/
+// minimized, so it isn't scoped to this component's own visibility.
 export function ExportSheet() {
   const exportSheet     = useAppStore(s => s.exportSheet)
   const setExportSheet  = useAppStore(s => s.setExportSheet)
@@ -30,7 +36,8 @@ export function ExportSheet() {
   const karaokeEnabled = useAppStore(s => s.karaokeEnabled)
   const duration      = useAppStore(s => s.duration)
   const lastOutput    = useAppStore(s => s.lastOutput)
-  const logs          = useAppStore(s => s.logs)
+  const lastErrorMessage = useAppStore(s => s.lastErrorMessage)
+  const progressPct   = useAppStore(s => s.progressPct)
   const set           = useAppStore(s => s.set)
   const { run } = useRenderExport()
 
@@ -41,6 +48,38 @@ export function ExportSheet() {
   useEffect(() => {
     if (exportSheet === 'settings') setFileName(prev => prev || slugify(title))
   }, [exportSheet, title])
+
+  // Dock/taskbar progress — mirrors `exportSheet`/`progressPct` regardless
+  // of whether the sheet itself is visible or minimized (UI_REBUILD_PLAN
+  // §4.4). Cheap no-op IPC calls; the OS coalesces rapid updates itself.
+  useEffect(() => {
+    const win = getCurrentWindow()
+    if (exportSheet === 'rendering') {
+      void win.setProgressBar({ status: ProgressBarStatus.Normal, progress: Math.round(progressPct) })
+    } else if (exportSheet === 'error') {
+      void win.setProgressBar({ status: ProgressBarStatus.Error, progress: 100 })
+    } else {
+      void win.setProgressBar({ status: ProgressBarStatus.None })
+    }
+  }, [exportSheet, progressPct])
+
+  // Native "Export complete" notification, only when the window isn't
+  // focused at the moment the render finishes (UI_DESIGN_SPEC.md §7.3).
+  const prevSheetRef = useRef(exportSheet)
+  useEffect(() => {
+    if (prevSheetRef.current !== 'success' && exportSheet === 'success') {
+      void (async () => {
+        const focused = await getCurrentWindow().isFocused()
+        if (focused) return
+        let granted = await isPermissionGranted()
+        if (!granted) granted = (await requestPermission()) === 'granted'
+        if (!granted) return
+        const fileName = lastOutput.replace(/\\/g, '/').split('/').pop() ?? lastOutput
+        sendNotification({ title: 'Export complete', body: fileName })
+      })()
+    }
+    prevSheetRef.current = exportSheet
+  }, [exportSheet, lastOutput])
 
   if (exportSheet === 'closed' || (minimized && exportSheet === 'rendering')) return null
 
@@ -147,26 +186,98 @@ export function ExportSheet() {
       )}
 
       {exportSheet === 'success' && (
-        <div className="flex flex-col items-center gap-3 py-6 text-center">
-          <span className="text-[32px] text-success">✓</span>
-          <span className="text-[15px] font-semibold text-text-1">Export complete</span>
-          <span className="break-all text-[12.5px] text-text-3">{lastOutput}</span>
-          <Button variant="ghost" onClick={close}>Done</Button>
-        </div>
+        <SuccessState
+          outputPath={lastOutput}
+          duration={duration}
+          onDone={close}
+          onExportAnother={() => setExportSheet('settings')}
+        />
       )}
 
       {exportSheet === 'error' && (
-        <div className="flex flex-col items-center gap-3 py-6 text-center">
-          <span className="text-[32px] text-danger">⚠</span>
-          <span className="text-[15px] font-semibold text-text-1">Export failed</span>
-          <span className="text-[12.5px] text-text-3">{logs[logs.length - 1] ?? 'Something went wrong.'}</span>
-          <div className="flex gap-2">
-            <Button variant="secondary" onClick={close}>Close</Button>
-            <Button variant="primary" onClick={() => setExportSheet('settings')}>Try Again</Button>
-          </div>
-        </div>
+        <ErrorState
+          message={lastErrorMessage}
+          onClose={close}
+          onTryAgain={() => setExportSheet('settings')}
+        />
       )}
     </Modal>
+  )
+}
+
+// ── State C — success ────────────────────────────────────────────────────
+
+function SuccessState({ outputPath, duration, onDone, onExportAnother }: {
+  outputPath: string; duration: number; onDone: () => void; onExportAnother: () => void
+}) {
+  const [sizeLabel, setSizeLabel] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    setSizeLabel(null)
+    stat(outputPath)
+      .then(info => { if (!cancelled) setSizeLabel(formatBytes(info.size)) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [outputPath])
+
+  const fileName = outputPath.replace(/\\/g, '/').split('/').pop() ?? outputPath
+
+  const reveal = () => {
+    const dir = outputPath.replace(/\\/g, '/').replace(/\/[^/]*$/, '')
+    ipc.openFolder(dir)
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-3 py-6 text-center">
+      <span className="animate-pop-in text-[48px] text-success">✓</span>
+      <span className="text-[15px] font-semibold text-text-1">Export complete</span>
+      <span className="break-all text-[12.5px] text-text-3">
+        {fileName}{sizeLabel ? ` · ${sizeLabel}` : ''} · {formatDuration(duration)}
+      </span>
+      <div className="mt-2 flex gap-2">
+        <Button variant="primary" onClick={reveal}>Reveal in Finder</Button>
+        <Button variant="secondary" onClick={onExportAnother}>Export Another</Button>
+        <Button variant="ghost" onClick={onDone}>Done</Button>
+      </div>
+    </div>
+  )
+}
+
+// ── State D — error ──────────────────────────────────────────────────────
+
+function ErrorState({ message, onClose, onTryAgain }: {
+  message: string; onClose: () => void; onTryAgain: () => void
+}) {
+  const logs = useAppStore(s => s.logs)
+  const [showDetails, setShowDetails] = useState(false)
+  const logRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (showDetails && logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight
+  }, [showDetails, logs])
+
+  return (
+    <div className="flex flex-col items-center gap-3 py-6 text-center">
+      <span className="text-[32px] text-danger">⚠</span>
+      <span className="text-[15px] font-semibold text-text-1">Export failed</span>
+      <span className="text-[12.5px] text-text-2">{message || 'Something went wrong.'}</span>
+      <button type="button" onClick={() => setShowDetails(v => !v)} className="text-[12px] text-text-3 hover:text-text-1">
+        {showDetails ? '▾ Hide details' : '▸ Show details'}
+      </button>
+      {showDetails && (
+        <div
+          ref={logRef}
+          className="h-[120px] w-full overflow-y-auto rounded-[var(--radius-s)] bg-bg-app p-2 text-left font-mono text-[11px] leading-relaxed text-text-2"
+        >
+          {logs.map((line, i) => <div key={i}>{line}</div>)}
+        </div>
+      )}
+      <div className="mt-2 flex gap-2">
+        <Button variant="secondary" onClick={onClose}>Close</Button>
+        <Button variant="primary" onClick={onTryAgain}>Try Again</Button>
+      </div>
+    </div>
   )
 }
 

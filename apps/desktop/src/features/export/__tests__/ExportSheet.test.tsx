@@ -1,8 +1,32 @@
 import { act } from 'react'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderIntoDom, click } from '../../../ui/testUtils'
 import { useAppStore } from '../../../store'
-import { ExportSheet } from '../ExportSheet'
+
+// jsdom has no real Tauri window/notification runtime — these are the OS
+// integration surfaces ExportSheet/CloseGuardDialog call into (P3-T12:
+// dock progress, native notification, close guard). Mocked as no-ops so
+// tests exercise this component's own state logic, not Tauri's IPC bridge.
+const mockWindow = {
+  setProgressBar: vi.fn().mockResolvedValue(undefined),
+  isFocused: vi.fn().mockResolvedValue(true),
+  onCloseRequested: vi.fn().mockResolvedValue(() => {}),
+  destroy: vi.fn().mockResolvedValue(undefined),
+}
+vi.mock('@tauri-apps/api/window', () => ({
+  getCurrentWindow: () => mockWindow,
+  ProgressBarStatus: { None: 'none', Normal: 'normal', Indeterminate: 'indeterminate', Paused: 'paused', Error: 'error' },
+}))
+vi.mock('@tauri-apps/plugin-fs', () => ({
+  stat: vi.fn().mockResolvedValue({ size: 48_432_640 }),
+}))
+vi.mock('@tauri-apps/plugin-notification', () => ({
+  isPermissionGranted: vi.fn().mockResolvedValue(true),
+  requestPermission: vi.fn().mockResolvedValue('granted'),
+  sendNotification: vi.fn(),
+}))
+
+const { ExportSheet } = await import('../ExportSheet')
 
 describe('ExportSheet', () => {
   beforeEach(() => {
@@ -36,11 +60,20 @@ describe('ExportSheet', () => {
     unmount()
   })
 
-  it('shows the success state with the output path', () => {
-    useAppStore.setState({ exportSheet: 'success', lastOutput: '/tmp/my-episode.mp4' })
+  it('shows the success state with the file name and duration', () => {
+    useAppStore.setState({ exportSheet: 'success', lastOutput: '/tmp/my-episode.mp4', duration: 84 })
     const { unmount } = renderIntoDom(<ExportSheet />)
     expect(document.body.textContent).toContain('Export complete')
-    expect(document.body.textContent).toContain('/tmp/my-episode.mp4')
+    expect(document.body.textContent).toContain('my-episode.mp4')
+    expect(document.body.textContent).toContain('1:24')
+    unmount()
+  })
+
+  it('shows the friendly error message (not a raw exception) in the error state', () => {
+    useAppStore.setState({ exportSheet: 'error', lastErrorMessage: 'Speech recognition failed.' })
+    const { unmount } = renderIntoDom(<ExportSheet />)
+    expect(document.body.textContent).toContain('Export failed')
+    expect(document.body.textContent).toContain('Speech recognition failed.')
     unmount()
   })
 

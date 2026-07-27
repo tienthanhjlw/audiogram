@@ -25,6 +25,11 @@ export interface RenderSlice {
   totalFrames: number
   etaSeconds: number | null
   onRenderEvent: (ev: RenderEvent) => void
+  /** New in P3-T12 — the friendly AppError.message for Export Sheet State D
+   * (never the raw exception, TECH_ARCHITECTURE §4.1); the technical detail
+   * still only lives in `logs`, behind "Show details". Set by
+   * features/export/useRenderExport.ts's catch block. */
+  lastErrorMessage: string
 }
 
 export const createRenderSlice: StateCreator<AppStore, [], [], RenderSlice> = (set) => {
@@ -52,6 +57,7 @@ export const createRenderSlice: StateCreator<AppStore, [], [], RenderSlice> = (s
     logs: [],
     isRendering: false,
     lastOutput: '',
+    lastErrorMessage: '',
     progress: 0,
     stage: 'idle',
     progressPct: 0,

@@ -69,6 +69,17 @@ body {
   animation: ui-modal-in 150ms ease-out;
 }
 
+/* Export Sheet State C's success checkmark — UI_DESIGN_SPEC.md §7.3
+ * ("pop-in 200ms"). */
+@keyframes ui-pop-in {
+  0%   { opacity: 0; transform: scale(0.5); }
+  70%  { opacity: 1; transform: scale(1.1); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.animate-pop-in {
+  animation: ui-pop-in 200ms ease-out;
+}
+
 /* Design/Captions mode switch — UI_DESIGN_SPEC.md §1.2 (150ms fade-slide;
  * canvas + transport stay put, only the two side panels animate). */
 @keyframes ui-mode-fade-slide {

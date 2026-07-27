@@ -10,6 +10,7 @@ import { CaptionsPanel } from './features/captions/CaptionsPanel'
 import { CaptionsCanvas } from './features/captions/CaptionsCanvas'
 import { CaptionsInspector } from './features/captions/CaptionsInspector'
 import { ExportSheet } from './features/export/ExportSheet'
+import { CloseGuardDialog } from './features/export/CloseGuardDialog'
 import { ShortcutsHelpModal } from './app/ShortcutsHelpModal'
 
 // UI_DESIGN_SPEC.md §2.2 — picking/dropping a file jumps straight into
@@ -42,6 +43,7 @@ export default function App() {
 
       <ShortcutsHelpModal />
       <ExportSheet />
+      <CloseGuardDialog />
 
       {screen === 'start' ? (
         <StartScreen />

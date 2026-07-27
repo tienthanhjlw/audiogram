@@ -9,6 +9,10 @@
     "dialog:default",
     "fs:default",
     "fs:allow-appdata-read-recursive",
-    "fs:allow-appdata-write-recursive"
+    "fs:allow-appdata-write-recursive",
+    "notification:default",
+    "core:window:allow-set-progress-bar",
+    "core:window:allow-close",
+    "core:window:allow-destroy"
   ]
 }
