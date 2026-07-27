@@ -33,20 +33,6 @@ pub fn escape_drawtext(s: &str) -> String {
     r
 }
 
-/// Wrap `text` into at most 2 lines of `max_chars` characters, breaking on words.
-pub fn wrap_text_2lines(text: &str, max_chars: usize) -> Vec<String> {
-    let chars: Vec<char> = text.chars().collect();
-    if chars.len() <= max_chars {
-        return vec![text.to_string()];
-    }
-    let mut split = max_chars.min(chars.len());
-    while split > 0 && chars[split - 1] != ' ' { split -= 1; }
-    if split == 0 { split = max_chars.min(chars.len()); }
-    let line1 = chars[..split].iter().collect::<String>().trim().to_string();
-    let line2 = chars[split..].iter().collect::<String>().trim().to_string();
-    if line2.is_empty() { vec![line1] } else { vec![line1, line2] }
-}
-
 // ── Subtitle timecodes ─────────────────────────────────────
 
 /// Format seconds as `H:MM:SS.cc` for ASS subtitle timestamps.

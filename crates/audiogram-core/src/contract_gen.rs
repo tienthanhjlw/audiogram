@@ -14,6 +14,10 @@ pub const WAVE_BPS: usize = 120;
 pub const BG_DARK_TOP: f32 = 0.22;
 pub const BG_DARK_BOTTOM: f32 = 0.5;
 pub const SPLIT_BPS: usize = 30;
+pub const TITLE_MAX_LINES: usize = 2;
+pub const TITLE_LINE_HEIGHT: f32 = 1.4;
+pub const SUBTITLE_MAX_LINES: usize = 2;
+pub const SUBTITLE_LINE_HEIGHT: f32 = 1.35;
 
 #[derive(Debug, Clone, Copy, PartialEq, Deserialize, Type)]
 pub struct LayoutZone {
@@ -93,5 +97,9 @@ mod tests {
         assert_eq!(BG_DARK_TOP, 0.22);
         assert_eq!(BG_DARK_BOTTOM, 0.5);
         assert_eq!(SPLIT_BPS, 30);
+        assert_eq!(TITLE_MAX_LINES, 2);
+        assert_eq!(TITLE_LINE_HEIGHT, 1.4);
+        assert_eq!(SUBTITLE_MAX_LINES, 2);
+        assert_eq!(SUBTITLE_LINE_HEIGHT, 1.35);
     }
 }

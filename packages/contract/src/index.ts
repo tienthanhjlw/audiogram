@@ -10,6 +10,10 @@ export const WAVE_BPS = 120 as const
 export const BG_DARK_TOP = 0.22 as const
 export const BG_DARK_BOTTOM = 0.5 as const
 export const SPLIT_BPS = 30 as const
+export const TITLE_MAX_LINES = 2 as const
+export const TITLE_LINE_HEIGHT = 1.4 as const
+export const SUBTITLE_MAX_LINES = 2 as const
+export const SUBTITLE_LINE_HEIGHT = 1.35 as const
 
 // Structurally identical to apps/desktop/src/types.ts's hand-written
 // LayoutZone/LayoutZones/LayoutTemplate — this package can't import those

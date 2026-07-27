@@ -8,8 +8,9 @@ pub struct AssWriter;
 impl AssWriter {
     /// Write an ASS subtitle file for plain or karaoke mode; return the path.
     ///
-    /// Positions and font sizes are derived from the same constants as `WaveformCanvas.tsx`
-    /// so the video output matches the canvas preview as closely as possible.
+    /// Positions and font sizes are derived from the same constants as
+    /// `domain/preview/renderer.ts` so the video output matches the canvas
+    /// preview as closely as possible.
     #[allow(clippy::too_many_arguments)]
     pub fn write(
         segments: &[Segment],
@@ -100,7 +101,7 @@ impl AssWriter {
 
 /// Build the ASS [V4+ Styles] line and per-event margin overrides for a given layout.
 ///
-/// MarginV is derived from each layout's `boxY` in WaveformCanvas.tsx:
+/// MarginV is derived from each layout's `boxY` in `domain/preview/renderer.ts`:
 ///   `margin_v = H * (1 - box_y_ratio) - box_h`
 /// where `box_h ≈ sub_fs * 1.4` (libass BorderStyle=3 line height estimate).
 ///

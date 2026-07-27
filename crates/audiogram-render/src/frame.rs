@@ -1,5 +1,5 @@
 /// Frame renderer — orchestrates background, layout, and waveform into one RGBA buffer.
-/// Layout geometry here must stay in sync with WaveformCanvas.tsx (the preview is the contract).
+/// Layout geometry here must stay in sync with domain/preview/renderer.ts (the preview is the contract).
 use crate::{
     pixel::{
         blend, draw_circle_ring, draw_gradient_circle, draw_image_cover_circle,
@@ -8,7 +8,7 @@ use crate::{
     text::{self, TextAlign, TextStyle, TitlePixel},
     wave::render_wave,
 };
-use audiogram_core::contract_gen::{LayoutZone, LayoutZones};
+use audiogram_core::contract_gen::{LayoutZone, LayoutZones, TITLE_LINE_HEIGHT, TITLE_MAX_LINES};
 use audiogram_core::entities::{Layout, TitleAlign, WaveStyle};
 use cosmic_text::{FontSystem, SwashCache};
 
@@ -60,8 +60,6 @@ pub struct TitleSpec {
     /// RenderJob.font_size_pct exactly (same field, same title use).
     pub font_size_pct: u32,
 }
-
-const TITLE_MAX_LINES: usize = 2; // TODO(p3-t5): unify with the preview's wrapText via contract/text.json
 
 fn title_align_to_text_align(align: TitleAlign) -> TextAlign {
     match align {
@@ -119,7 +117,7 @@ pub fn compute_title_pixels(
                 bold: true,
                 italic: false,
                 align: TextAlign::Center,
-                line_height_ratio: 1.4,
+                line_height_ratio: TITLE_LINE_HEIGHT,
             };
             let mw = w_f * tz.w;
             let y_center = h_f * (tz.y + tz.h / 2.0);
@@ -139,7 +137,7 @@ pub fn compute_title_pixels(
                 bold: spec.bold,
                 italic: spec.italic,
                 align: TextAlign::Left,
-                line_height_ratio: 1.4,
+                line_height_ratio: TITLE_LINE_HEIGHT,
             };
             let mw = w_f * tz.w;
             let y_center = h_f * (tz.y + tz.h / 2.0);
@@ -162,7 +160,7 @@ pub fn compute_title_pixels(
                 bold: spec.bold,
                 italic: spec.italic,
                 align: title_align_to_text_align(spec.align),
-                line_height_ratio: 1.4,
+                line_height_ratio: TITLE_LINE_HEIGHT,
             };
             let mw = w_f * 0.84;
             let rx = (w_f - mw) / 2.0;
@@ -187,7 +185,7 @@ pub fn compute_title_pixels(
                 bold: spec.bold,
                 italic: spec.italic,
                 align: title_align_to_text_align(spec.align),
-                line_height_ratio: 1.4,
+                line_height_ratio: TITLE_LINE_HEIGHT,
             };
             let mw = w_f * tz.w;
             let y_center = h_f * (tz.y + tz.h / 2.0);

@@ -13,6 +13,10 @@
 // output. Per UI_REBUILD_PLAN.md §1.3 ("bỏ... watermark 'audiogram' trên
 // preview"), removing it here is fixing that drift, not a new design call.
 import { WAVE_EFFECTS, waveHeights } from '@audiogram/wave-effects'
+import {
+  BG_DARK_BOTTOM, BG_DARK_TOP, SUBTITLE_LINE_HEIGHT, SUBTITLE_MAX_LINES,
+  TITLE_LINE_HEIGHT, TITLE_MAX_LINES,
+} from '@audiogram/contract'
 import { DEFAULT_ZONES, LayoutTemplate, LayoutZones, Segment, WaveStyle } from '../../types'
 
 /** Everything `drawFrame` needs for one frame, other than the canvas itself. */
@@ -62,7 +66,7 @@ function getZ(dc: DC): LayoutZones {
   return dc.zones ?? DEFAULT_ZONES[dc.layoutTemplate]
 }
 
-function wrapText(ctx: CanvasRenderingContext2D, text: string, maxW: number): string[] {
+function wrapText(ctx: CanvasRenderingContext2D, text: string, maxW: number, maxLines = TITLE_MAX_LINES): string[] {
   const words = text.split(' ')
   const lines: string[] = []
   let cur = ''
@@ -72,7 +76,7 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxW: number): st
     else cur = test
   }
   if (cur) lines.push(cur)
-  return lines.slice(0, 2)
+  return lines.slice(0, maxLines)
 }
 
 // ── Waveform dispatcher ───────────────────────────────────────────────────────
@@ -139,7 +143,7 @@ function drawTitle(dc: DC, yCenter: number, maxW?: number, xCenter?: number) {
     cx = W / 2
   }
   const lines = wrapText(ctx, dc.title, mw)
-  const lineH = fs * 1.4
+  const lineH = fs * TITLE_LINE_HEIGHT
   const totalH = lines.length * lineH
   const startY = yCenter - totalH / 2 + fs * 0.85
   lines.forEach((line, i) => ctx.fillText(line, cx, startY + i * lineH, mw))
@@ -160,8 +164,8 @@ function drawSubtitle(dc: DC, defaultBoxY: number) {
   ctx.font = `700 ${subFs}px '${fontName}', Arial, sans-serif`
   const padX = W * 0.038, padY = H * 0.012
   const maxTW = W * 0.80
-  const lines = wrapText(ctx, text, maxTW)
-  const lineH = subFs * 1.35
+  const lines = wrapText(ctx, text, maxTW, SUBTITLE_MAX_LINES)
+  const lineH = subFs * SUBTITLE_LINE_HEIGHT
   const maxLineW = Math.max(...lines.map(l => ctx.measureText(l).width))
   const boxW = Math.min(maxLineW + padX * 2, W * 0.88)
   const boxH = lines.length * lineH + padY * 2
@@ -205,7 +209,7 @@ function drawBg(dc: DC) {
   const { ctx, W, H, bgColor } = dc
   ctx.fillStyle = bgColor; ctx.fillRect(0, 0, W, H)
   const g = ctx.createLinearGradient(0, 0, 0, H)
-  g.addColorStop(0, 'rgba(0,0,0,0.22)'); g.addColorStop(1, 'rgba(0,0,0,0.50)')
+  g.addColorStop(0, `rgba(0,0,0,${BG_DARK_TOP})`); g.addColorStop(1, `rgba(0,0,0,${BG_DARK_BOTTOM})`)
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H)
 }
 
@@ -356,7 +360,7 @@ function drawKaraoke(dc: DC) {
     ctx.textAlign = 'center'
     const maxW = W * tz.w
     const lines = wrapText(ctx, text, maxW)
-    const lineH = bigFs * 1.4
+    const lineH = bigFs * TITLE_LINE_HEIGHT
     const totalH = lines.length * lineH
     const startY = textCenterY - totalH / 2 + bigFs * 0.85
     const fp = dc.slotDur > 0 ? Math.min(Math.max((dc.elapsed - dc.slotStart) / dc.slotDur, 0), 1) : 1
@@ -393,7 +397,7 @@ function drawKaraoke(dc: DC) {
     ctx.font = `700 ${fs}px '${dc.fontName}', Arial, sans-serif`
     ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.textAlign = 'center'
     const lines = wrapText(ctx, dc.title, W * tz.w)
-    const lineH = fs * 1.4
+    const lineH = fs * TITLE_LINE_HEIGHT
     lines.forEach((line, i) => ctx.fillText(line, W / 2, textCenterY - (lines.length * lineH) / 2 + fs * 0.85 + i * lineH))
   }
 
@@ -436,7 +440,7 @@ function drawBrand(dc: DC) {
   ctx.fillStyle = 'rgba(255,255,255,0.95)'; ctx.textAlign = 'left'
   if (dc.title) {
     const lines = wrapText(ctx, dc.title, W * tz.w)
-    const lineH = fs * 1.4
+    const lineH = fs * TITLE_LINE_HEIGHT
     const startY = H * (tz.y + tz.h / 2) - (lines.length * lineH) / 2 + fs * 0.85
     lines.forEach((line, i) => ctx.fillText(line, titleX, startY + i * lineH, W * tz.w))
   }

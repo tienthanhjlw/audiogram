@@ -37,8 +37,22 @@ import path from 'node:path'
 const here = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(here, '..')
 
-const constants = JSON.parse(readFileSync(path.join(here, 'constants.json'), 'utf8'))
+const rawConstants = JSON.parse(readFileSync(path.join(here, 'constants.json'), 'utf8'))
 const zones = JSON.parse(readFileSync(path.join(here, 'zones.json'), 'utf8'))
+const text = JSON.parse(readFileSync(path.join(here, 'text.json'), 'utf8'))
+
+// text.json's keys are camelCase (titleMaxLines) since they read naturally
+// that way in JSON; every other constant in this file is SCREAMING_SNAKE, so
+// convert here rather than mixing conventions across the two generated
+// modules (PHASE3_TASKS.md T5).
+function camelToScreamingSnake(key) {
+  return key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toUpperCase()
+}
+
+const constants = {
+  ...rawConstants,
+  ...Object.fromEntries(Object.entries(text).map(([k, v]) => [camelToScreamingSnake(k), v])),
+}
 
 // Matches LAYOUT_TEMPLATES' order in apps/desktop/src/types.ts, purely so
 // generated output has a stable, human-reviewable diff.
@@ -48,7 +62,10 @@ const OPTIONAL_ZONE_KEYS = ['avatar', 'subtitle']
 
 // Rust integer types per constant — anything not listed here (BAR_FILL,
 // GAP_FILL, BG_DARK_TOP, BG_DARK_BOTTOM) is f32.
-const RUST_INT_TYPE = { WAVE_BARS: 'usize', EQ_BANDS: 'usize', EQ_BPS: 'u32', WAVE_BPS: 'usize', SPLIT_BPS: 'usize' }
+const RUST_INT_TYPE = {
+  WAVE_BARS: 'usize', EQ_BANDS: 'usize', EQ_BPS: 'u32', WAVE_BPS: 'usize', SPLIT_BPS: 'usize',
+  TITLE_MAX_LINES: 'usize', SUBTITLE_MAX_LINES: 'usize',
+}
 
 function rustType(key) {
   return RUST_INT_TYPE[key] ?? 'f32'
