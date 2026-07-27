@@ -1,6 +1,6 @@
 use std::{fs, path::PathBuf};
 use audiogram_core::util::{format_ass_time, hex_to_rgb};
-use audiogram_core::{entities::Segment, AppError};
+use audiogram_core::{entities::Segment, AppError, contract_gen::LayoutZones};
 use crate::srt::subtitle_dir;
 
 pub struct AssWriter;
@@ -23,6 +23,7 @@ impl AssWriter {
         font_name: Option<&str>,
         subtitle_y_pct: Option<f64>,
         subtitle_color: Option<&str>,
+        zones: Option<&LayoutZones>,
     ) -> Result<PathBuf, AppError> {
         let tmp = subtitle_dir().join("subtitles.ass");
         fs::create_dir_all(tmp.parent().unwrap())?;
@@ -55,7 +56,7 @@ impl AssWriter {
         out.push_str("Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n");
 
         let (style_line, dial_ml, dial_mr) = ass_style(
-            font, &primary, &secondary, w, h, scale, layout, subtitle_y_pct
+            font, &primary, &secondary, w, h, scale, layout, subtitle_y_pct, zones
         );
         out.push_str(&style_line);
         out.push_str("\n\n");
@@ -101,9 +102,13 @@ impl AssWriter {
 
 /// Build the ASS [V4+ Styles] line and per-event margin overrides for a given layout.
 ///
-/// MarginV is derived from each layout's `boxY` in `domain/preview/renderer.ts`:
-///   `margin_v = H * (1 - box_y_ratio) - box_h`
-/// where `box_h ≈ sub_fs * 1.4` (libass BorderStyle=3 line height estimate).
+/// MarginV is derived from layout zones (if present) or layout defaults:
+///   `margin_v = H * (1 - zone_y) - box_h`
+/// where `zone_y = zones.subtitle.y` (top edge of subtitle box, 0-1 normalized)
+/// and `box_h ≈ sub_fs * 1.4` (libass BorderStyle=3 line height estimate).
+///
+/// Fallback (when zones is None) uses per-layout hard-coded ratios matching
+/// `domain/preview/renderer.ts`'s defaults. Also respects subtitle_y_pct override.
 ///
 /// Returns `(style_line, dial_margin_l, dial_margin_r)`.
 pub fn ass_style(
@@ -115,11 +120,21 @@ pub fn ass_style(
     scale: f64,
     layout: &str,
     subtitle_y_pct: Option<f64>,
+    zones: Option<&LayoutZones>,
 ) -> (String, u32, u32) {
     let sub_fs  = (h * 0.046 * scale).round();
     let box_h   = sub_fs * 1.4;
     let mv = |default_box_y_ratio: f64| -> u32 {
-        let ratio = subtitle_y_pct.unwrap_or(default_box_y_ratio);
+        // Priority: zones.subtitle.y (if present) → subtitle_y_pct (if present) → fallback
+        let ratio = if let Some(z) = zones {
+            if let Some(sub_zone) = &z.subtitle {
+                sub_zone.y as f64
+            } else {
+                subtitle_y_pct.unwrap_or(default_box_y_ratio)
+            }
+        } else {
+            subtitle_y_pct.unwrap_or(default_box_y_ratio)
+        };
         ((h * (1.0 - ratio) - box_h).max(0.0)).round() as u32
     };
 
@@ -139,7 +154,12 @@ pub fn ass_style(
         }
         "split" => {
             let fs  = (h * 0.036 * scale).round() as u32;
-            let mv  = (h * 0.20).round() as u32;
+            // Use zone if present, otherwise fall back to hard-coded 0.20
+            let zone_ratio = zones
+                .and_then(|z| z.subtitle.as_ref())
+                .map(|sub_zone| sub_zone.y as f64)
+                .unwrap_or(0.20);
+            let mv  = ((h * (1.0 - zone_ratio) - box_h).max(0.0)).round() as u32;
             let ml  = (w * 0.55) as u32;
             let mr  = (w * 0.04) as u32;
             let line = format!(
@@ -172,7 +192,7 @@ mod tests {
             &segments, "#FFD60A",
             Some(1080), Some(1080), Some(100),
             Some("minimal"), Some(true), Some("Arial"),
-            None, None,
+            None, None, None,
         ).unwrap();
 
         let contents = fs::read_to_string(&path).unwrap();

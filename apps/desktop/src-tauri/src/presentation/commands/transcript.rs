@@ -62,6 +62,7 @@ pub fn write_ass(
         params.font_name.as_deref(),
         params.subtitle_y_pct,
         params.subtitle_color.as_deref(),
+        params.zones.as_ref(),
     )
     .map(|p| p.to_string_lossy().to_string())
     .map_err(Into::into)

@@ -133,7 +133,13 @@ export type SpectrumResult = {
  * Access: `bands[t * EQ_BANDS + b]` = amplitude of band b at time bucket t.
  */
 bands: number[]; n_buckets: number; n_bands: number }
-export type WriteAssParams = { highlightColor: string; videoWidth: number | null; videoHeight: number | null; fontSizePct: number | null; layoutTemplate: string | null; karaokeEnabled: boolean | null; fontName: string | null; subtitleYPct: number | null; subtitleColor: string | null }
+export type WriteAssParams = { highlightColor: string; videoWidth: number | null; videoHeight: number | null; fontSizePct: number | null; layoutTemplate: string | null; karaokeEnabled: boolean | null; fontName: string | null; subtitleYPct: number | null; subtitleColor: string | null; 
+/**
+ * Layout zones for subtitle positioning — passed from export sheet
+ * (Phase 4 T2). When present, `zones.subtitle.y` is used for MarginV
+ * in ASS style (instead of hard-coded per-layout fallback).
+ */
+zones: LayoutZones | null }
 
 /** tauri-specta globals **/
 

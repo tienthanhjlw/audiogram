@@ -54,6 +54,7 @@ export function useRenderExport() {
         fontName,
         subtitleYPct: subtitleYPct ?? null,
         subtitleColor,
+        zones: toZonesDto(zones),
       })
     }
 
