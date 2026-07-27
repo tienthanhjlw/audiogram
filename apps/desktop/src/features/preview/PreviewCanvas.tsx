@@ -14,6 +14,13 @@ interface PreviewCanvasProps {
   width?: number
   ratio: number
   className?: string
+  /** PHASE3_TASKS.md T8 — Captions mode's CaptionsCanvas passes true so the
+   * preview shows the real caption text/karaoke sweep currently playing,
+   * same activeSeg/slotStart/slotDur/elapsed derivation as the legacy
+   * WaveformCanvas.tsx adapter. Design mode's CanvasStage omits this
+   * (defaults false) — its canvas never showed live caption text, only the
+   * subtitle zone's placeholder box when one exists. */
+  showCaptions?: boolean
 }
 
 /** Live canvas preview — reads current template/wave/caption style straight
@@ -22,7 +29,7 @@ interface PreviewCanvasProps {
  * `duration > 0` the waveform follows the real transport playhead instead of
  * looping its own demo clock — this is what makes the preview and the
  * transport bar agree on what's currently playing. */
-export function PreviewCanvas({ width, ratio, className }: PreviewCanvasProps) {
+export function PreviewCanvas({ width, ratio, className, showCaptions = false }: PreviewCanvasProps) {
   const audioPath      = useAppStore(s => s.audioPath)
   const title          = useAppStore(s => s.title)
   const waveStyle      = useAppStore(s => s.waveStyle)
@@ -42,6 +49,8 @@ export function PreviewCanvas({ width, ratio, className }: PreviewCanvasProps) {
   const titleItalic    = useAppStore(s => s.titleItalic)
   const peaks          = useAppStore(s => s.peaks)
   const duration       = useAppStore(s => s.duration)
+  const captionSegments = useAppStore(s => showCaptions && s.showSubtitles ? s.segments : [])
+  const karaokeEnabled  = useAppStore(s => showCaptions && s.showSubtitles ? s.karaokeEnabled : false)
 
   const canvasRef    = useRef<HTMLCanvasElement>(null)
   const coverImgRef  = useRef<HTMLImageElement | null>(null)
@@ -80,6 +89,22 @@ export function PreviewCanvas({ width, ratio, className }: PreviewCanvasProps) {
       const waveDur  = hasAudio ? duration : 30
       const waveTime = hasAudio ? currentTime : performance.now() / 1000
 
+      // Same activeSeg/slotStart/slotDur derivation as the legacy
+      // WaveformCanvas.tsx adapter — copied rather than rewritten
+      // (PHASE3_TASKS.md T8 step 3). Design mode passes showCaptions=false,
+      // so captionSegments is always [] there and this loop is a no-op —
+      // it never showed live caption text, only the subtitle zone's
+      // placeholder box (subtitlePreview below) when one exists.
+      let activeSeg: FrameSpec['activeSeg'], slotStart = 0, slotDur = 0
+      const elapsed = waveTime % waveDur
+      if (captionSegments.length > 0) {
+        for (const seg of captionSegments) {
+          if (elapsed >= seg.start && elapsed < seg.end) {
+            activeSeg = seg; slotStart = seg.start; slotDur = seg.end - seg.start; break
+          }
+        }
+      }
+
       const spec: FrameSpec = {
         t: performance.now() / 1200,
         peaks,
@@ -89,16 +114,13 @@ export function PreviewCanvas({ width, ratio, className }: PreviewCanvasProps) {
         title,
         fontSize,
         fontName,
-        // Design mode never shows real caption text on the canvas (matches
-        // the previous StepLayout.tsx preview call) — karaoke highlight and
-        // segment text belong to Captions mode's own preview pass (Phase 3).
-        karaokeEnabled: false,
+        karaokeEnabled,
         karaokeColor,
-        activeSeg: undefined,
-        slotStart: 0,
-        slotDur: 0,
-        elapsed: 0,
-        segments: [],
+        activeSeg,
+        slotStart,
+        slotDur,
+        elapsed,
+        segments: captionSegments,
         coverImg: coverImgRef.current,
         waveTime,
         waveDur,
@@ -120,8 +142,8 @@ export function PreviewCanvas({ width, ratio, className }: PreviewCanvasProps) {
     })
     return unsub
   }, [
-    peaks, waveColor, bgColor, waveStyle, title, fontSize, fontName, karaokeColor,
-    subtitleColor, subtitleYPct, zones, layoutTemplate, titleColor, titleAlign,
+    peaks, waveColor, bgColor, waveStyle, title, fontSize, fontName, karaokeEnabled, karaokeColor,
+    captionSegments, subtitleColor, subtitleYPct, zones, layoutTemplate, titleColor, titleAlign,
     titleBold, titleItalic, subtitlePreview, duration, fftPeaksRef, fftBucketsRef,
   ])
 

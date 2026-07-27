@@ -3,10 +3,9 @@ import { CANVAS_SIZES } from '../../types'
 import { PreviewCanvas } from '../preview/PreviewCanvas'
 
 // Captions mode's middle column — a plain centered preview, no zone-drag
-// overlays (those are Design mode's CanvasStage). Live caption text/karaoke
-// in this preview is T8's job (PreviewCanvas still hardcodes
-// `activeSeg: undefined` until then) — this task (T6) only needs the 3-pane
-// shell in place of StepTranscript's monolithic layout.
+// overlays (those are Design mode's CanvasStage). `showCaptions` (P3-T8)
+// makes PreviewCanvas draw the real caption text/karaoke sweep currently
+// playing, instead of Design mode's always-empty segments.
 export function CaptionsCanvas() {
   const canvasSize = useAppStore(s => s.canvasSize)
   const { w, h } = CANVAS_SIZES[canvasSize]
@@ -22,7 +21,7 @@ export function CaptionsCanvas() {
           height: ratio < 1 ? '86%' : undefined,
         }}
       >
-        <PreviewCanvas ratio={ratio} className="h-full w-full" />
+        <PreviewCanvas ratio={ratio} className="h-full w-full" showCaptions />
       </div>
     </div>
   )
