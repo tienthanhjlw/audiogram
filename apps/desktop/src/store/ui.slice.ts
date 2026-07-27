@@ -50,6 +50,15 @@ export interface UiSlice {
    * the legacy `goTo('export')`. */
   exportSheet: ExportSheetState
   setExportSheet: (state: ExportSheetState) => void
+  /** New in P3-T11 — minimize (UI_DESIGN_SPEC.md §7.2): clicking the sheet's
+   * overlay backdrop while a render is in flight hides the sheet (this
+   * flips true) without touching `exportSheet` itself, so the render
+   * pipeline and its `stage`/`progressPct` keep running untouched. The
+   * toolbar's progress chip (Toolbar.tsx) flips it back via
+   * app/actions.ts's exportProject. Reset to false by setExportSheet so a
+   * fresh 'settings'/'closed' transition never inherits a stale minimize. */
+  exportSheetMinimized: boolean
+  setExportSheetMinimized: (minimized: boolean) => void
   /** New in T13 — set by the Help > Keyboard Shortcuts native menu item
    * (app/actions.ts's openShortcutsHelp), read by ShortcutsHelpModal.tsx. */
   shortcutsHelpOpen: boolean
@@ -73,7 +82,9 @@ export const createUiSlice: StateCreator<AppStore, [], [], UiSlice> = (set, get)
   scrollToActiveSegmentRequest: 0,
   requestScrollToActiveSegment: () => set(s => ({ scrollToActiveSegmentRequest: s.scrollToActiveSegmentRequest + 1 })),
   exportSheet: 'closed',
-  setExportSheet: (state) => set({ exportSheet: state }),
+  setExportSheet: (state) => set({ exportSheet: state, exportSheetMinimized: false }),
+  exportSheetMinimized: false,
+  setExportSheetMinimized: (minimized) => set({ exportSheetMinimized: minimized }),
   shortcutsHelpOpen: false,
   set: (patch) => set(patch),
   goTo: (step) => set({ step }),

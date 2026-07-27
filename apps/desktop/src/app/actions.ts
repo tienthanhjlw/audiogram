@@ -46,12 +46,16 @@ function openRecentEntry(entry: { audioPath: string; audioName: string; title: s
   })
 }
 
-// PHASE3_TASKS.md T10 — opens the Export Sheet instead of the legacy 4-step
-// wizard's `goTo('export')`. Guarded so ⌘E/menu/toolbar can't reopen the
-// sheet mid-render (it stays open, driven by the render pipeline instead).
+// PHASE3_TASKS.md T10/T11 — opens the Export Sheet instead of the legacy
+// 4-step wizard's `goTo('export')`. If a render is already in flight and
+// minimized (T11 — Toolbar's progress chip calls this same action), this
+// un-minimizes it back into view instead of starting a second one;
+// `exportSheet` itself is untouched either way, since a render already in
+// flight or already finished shouldn't reopen/restart State A.
 function exportProject(): void {
-  const { exportSheet, setExportSheet } = useAppStore.getState()
+  const { exportSheet, setExportSheet, setExportSheetMinimized } = useAppStore.getState()
   if (exportSheet === 'closed') setExportSheet('settings')
+  else setExportSheetMinimized(false)
 }
 
 function setMode(mode: Mode): void {

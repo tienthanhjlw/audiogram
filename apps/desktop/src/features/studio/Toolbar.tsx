@@ -50,7 +50,10 @@ export function Toolbar() {
   const audioName = useAppStore(s => s.audioName)
   const mode = useAppStore(s => s.mode)
   const isRendering = useAppStore(s => s.isRendering)
-  const progress = useAppStore(s => s.progress)
+  // P3-T11 — the structured render_event feed's progressPct (T9), not the
+  // legacy plain `progress` field this chip used before the Export Sheet's
+  // real rendering-state UI existed to read the same source.
+  const progressPct = useAppStore(s => s.progressPct)
   const segmentsCount = useAppStore(s => s.segments.length)
 
   const [menuOpen, setMenuOpen] = useState(false)
@@ -173,7 +176,7 @@ export function Toolbar() {
       <div className="flex flex-1 items-center justify-end">
         {isRendering ? (
           <Button variant="secondary" size="md" onClick={actions.exportProject}>
-            ◔ {progress}%
+            ◔ {Math.round(progressPct)}%
           </Button>
         ) : (
           <Button variant="primary" size="md" shortcutHint="⌘E" disabled={!audioPath} onClick={actions.exportProject}>

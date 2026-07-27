@@ -59,6 +59,7 @@ export function useRenderExport() {
 
     set({
       exportSheet: 'rendering',
+      exportSheetMinimized: false,
       isRendering: true,
       progress: 0,
       stage: 'preparing',
@@ -91,10 +92,10 @@ export function useRenderExport() {
         title_bold: titleBold,
         title_italic: titleItalic,
       })
-      useAppStore.setState(s => ({ lastOutput: res, isRendering: false, exportSheet: 'success', logs: [...s.logs, `Done: ${res}`] }))
+      useAppStore.setState(s => ({ lastOutput: res, isRendering: false, exportSheet: 'success', exportSheetMinimized: false, logs: [...s.logs, `Done: ${res}`] }))
     } catch (e) {
       const err = e as AppError
-      useAppStore.setState(s => ({ isRendering: false, exportSheet: 'error', logs: [...s.logs, `Error: ${err.detail ?? err.message}`] }))
+      useAppStore.setState(s => ({ isRendering: false, exportSheet: 'error', exportSheetMinimized: false, logs: [...s.logs, `Error: ${err.detail ?? err.message}`] }))
     }
   }, [])
 
