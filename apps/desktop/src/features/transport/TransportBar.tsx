@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { useAppStore } from '../../store'
 import { audioEngine } from '../../core/audio/AudioEngine'
+import type { Segment } from '../../types'
 
 const BAR_W = 2
 const GAP_W = 1
 const STEP = BAR_W + GAP_W
+const BLOCK_BAND_H = 6
 
 // Mirrors --color-accent / --color-text-3 from ui/tokens.css — canvas
 // fillStyle can't read CSS custom properties, so these two are duplicated
@@ -14,6 +16,8 @@ const COLOR_PLAYED = '#7C5CFF'
 const COLOR_UNPLAYED = '#5C5C6E'
 const COLOR_PLAYHEAD = '#F4F4F6'
 const COLOR_HOVER_GHOST = 'rgba(244, 244, 246, 0.35)'
+const COLOR_SEGMENT_BLOCK = 'rgba(124, 92, 255, 0.45)'
+const COLOR_SEGMENT_BLOCK_ACTIVE = 'rgba(124, 92, 255, 1)'
 
 function formatTimecode(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) seconds = 0
@@ -22,34 +26,49 @@ function formatTimecode(seconds: number): string {
   return `${m}:${s.toFixed(1).padStart(4, '0')}`
 }
 
-// shell/TransportBar.tsx — UI_DESIGN_SPEC.md §6, built per PHASE1_TASKS.md
-// T12 (everything except segment blocks + the now-playing chip, which need
-// Captions-mode data structures from Phase 3 — left as a TODO slot below).
-// The seek strip's waveform + playhead redraw on every audioEngine.onFrame
-// tick (a raw rAF loop reading `<audio>.currentTime` directly), NOT via the
-// store's 10Hz-throttled `currentTime` — that's what keeps the playhead
-// smooth (TECH_ARCHITECTURE.md §4.3). The timecode text next to it *does*
-// read the throttled store value, which is fine for digits changing 10x/sec.
+// shell/TransportBar.tsx — UI_DESIGN_SPEC.md §6. The seek strip's waveform +
+// playhead redraw on every audioEngine.onFrame tick (a raw rAF loop reading
+// `<audio>.currentTime` directly), NOT via the store's 10Hz-throttled
+// `currentTime` — that's what keeps the playhead smooth (TECH_ARCHITECTURE.md
+// §4.3). The timecode text next to it *does* read the throttled store value,
+// which is fine for digits changing 10x/sec. Segment blocks + the
+// now-playing chip (P3-T9) follow the same hot-path rule: blocks draw into
+// this same canvas (no per-segment DOM node — 500 segments would wreck
+// layout), only the chip's text uses the throttled value since it just
+// needs to read legibly, not track the playhead.
 export function TransportBar() {
   const peaks = useAppStore(s => s.peaks)
   const duration = useAppStore(s => s.duration)
   const currentTime = useAppStore(s => s.currentTime)
   const playing = useAppStore(s => s.playing)
   const audioPath = useAppStore(s => s.audioPath)
+  const mode = useAppStore(s => s.mode)
+  const segments = useAppStore(s => s.segments)
+  const requestScrollToActiveSegment = useAppStore(s => s.requestScrollToActiveSegment)
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const peaksRef = useRef(peaks)
   const durationRef = useRef(duration)
+  const segmentsRef = useRef<Segment[]>([])
   const hoverPctRef = useRef<number | null>(null)
   const draggingRef = useRef(false)
   const [hoverTooltip, setHoverTooltip] = useState<{ x: number; label: string } | null>(null)
 
   const ready = duration > 0
   const canScrub = ready && !!audioPath
+  const showSegmentBlocks = mode === 'captions' && segments.length > 0
 
   useEffect(() => { peaksRef.current = peaks }, [peaks])
   useEffect(() => { durationRef.current = duration }, [duration])
+  // Blocks-drawing is gated by mode too, so switching back to Design mode
+  // stops drawing them even though `segments` itself doesn't change.
+  useEffect(() => { segmentsRef.current = showSegmentBlocks ? segments : [] }, [segments, showSegmentBlocks])
+
+  const activeSegment = useMemo(
+    () => segments.find(s => currentTime >= s.start && currentTime < s.end),
+    [segments, currentTime],
+  )
 
   const draw = (time: number) => {
     const canvas = canvasRef.current
@@ -80,6 +99,22 @@ export function TransportBar() {
       ctx.fillRect(x, y, BAR_W, barH)
     }
 
+    const segs = segmentsRef.current
+    if (segs.length > 0) {
+      const bandY = H - BLOCK_BAND_H
+      for (const seg of segs) {
+        const x0 = (seg.start / dur) * W
+        const x1 = (seg.end / dur) * W
+        const isActive = time >= seg.start && time < seg.end
+        ctx.fillStyle = isActive ? COLOR_SEGMENT_BLOCK_ACTIVE : COLOR_SEGMENT_BLOCK
+        if (isActive) { ctx.shadowColor = COLOR_SEGMENT_BLOCK_ACTIVE; ctx.shadowBlur = 4 }
+        ctx.beginPath()
+        ctx.roundRect(x0 + 0.5, bandY, Math.max(1, x1 - x0 - 1), BLOCK_BAND_H, 2)
+        ctx.fill()
+        ctx.shadowBlur = 0
+      }
+    }
+
     const hoverPct = hoverPctRef.current
     if (hoverPct !== null) {
       ctx.fillStyle = COLOR_HOVER_GHOST
@@ -91,10 +126,10 @@ export function TransportBar() {
   }
 
   useEffect(() => {
-    // Redraw immediately on peaks/size changes even while paused, instead of
-    // waiting for the next onFrame tick.
+    // Redraw immediately on peaks/size/segment changes even while paused,
+    // instead of waiting for the next onFrame tick.
     draw(useAppStore.getState().currentTime)
-  }, [peaks, duration])
+  }, [peaks, duration, segments, showSegmentBlocks])
 
   useEffect(() => audioEngine.onFrame(draw), [])
 
@@ -111,11 +146,24 @@ export function TransportBar() {
     return Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
   }
 
+  /** Segment under the cursor, only considered "hit" within the bottom
+   * `BLOCK_BAND_H` band — the rest of the strip is a plain seek target even
+   * when segment blocks are showing. */
+  const segmentAt = (e: ReactPointerEvent): Segment | undefined => {
+    if (!showSegmentBlocks) return undefined
+    const rect = containerRef.current!.getBoundingClientRect()
+    if (e.clientY - rect.top < rect.height - BLOCK_BAND_H) return undefined
+    const t = pctFromClientX(e.clientX) * duration
+    return segments.find(s => t >= s.start && t < s.end)
+  }
+
   const onPointerMove = (e: ReactPointerEvent) => {
     const pct = pctFromClientX(e.clientX)
     if (canScrub) {
       hoverPctRef.current = pct
-      setHoverTooltip({ x: e.clientX - containerRef.current!.getBoundingClientRect().left, label: formatTimecode(pct * duration) })
+      const hoveredSeg = segmentAt(e)
+      const x = e.clientX - containerRef.current!.getBoundingClientRect().left
+      setHoverTooltip({ x, label: hoveredSeg ? hoveredSeg.text : formatTimecode(pct * duration) })
     }
     if (draggingRef.current && canScrub) audioEngine.seek(pct * duration)
   }
@@ -129,6 +177,8 @@ export function TransportBar() {
     if (!canScrub) return
     draggingRef.current = true
     ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+    const clickedSeg = segmentAt(e)
+    if (clickedSeg) useAppStore.getState().selectSegment(clickedSeg.id)
     audioEngine.seek(pctFromClientX(e.clientX) * duration)
   }
 
@@ -161,9 +211,6 @@ export function TransportBar() {
         onPointerUp={onPointerUp}
       >
         <canvas ref={canvasRef} className="h-full w-full" />
-        {/* TODO(p1-t12): segment blocks (6px strip along the bottom) + the
-         * now-playing chip to the right of the strip both need Captions-mode
-         * segment data wired up in Phase 3 (UI_DESIGN_SPEC.md §6). */}
         {hoverTooltip && (
           <div
             className="pointer-events-none absolute -top-7 -translate-x-1/2 rounded bg-black/90 px-1.5 py-0.5 text-[11px] text-text-1"
@@ -175,6 +222,17 @@ export function TransportBar() {
       </div>
 
       <span className="tabular w-14 shrink-0 text-[12px] text-text-2">{formatTimecode(duration)}</span>
+
+      {showSegmentBlocks && playing && activeSegment && (
+        <button
+          type="button"
+          onClick={requestScrollToActiveSegment}
+          title="Scroll to current segment"
+          className="max-w-[280px] shrink-0 truncate rounded-full bg-bg-elevated px-3 py-1 text-[12px] text-text-2 hover:text-text-1"
+        >
+          ♪ {activeSegment.text}
+        </button>
+      )}
     </div>
   )
 }

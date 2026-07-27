@@ -28,6 +28,15 @@ export interface UiSlice {
    * blocks read this too, to stay in sync with the list. */
   selectedSegmentId: number | null
   selectSegment: (id: number | null) => void
+  /** New in P3-T9 — bumped by the transport bar's now-playing chip so
+   * SegmentList force-scrolls to the active row even if the playhead has
+   * been inside the same segment the whole time (its own auto-scroll only
+   * fires when the active segment *changes*, so a manually-scrolled-away
+   * list wouldn't otherwise snap back). An incrementing counter rather than
+   * a boolean so two clicks in a row (no segment change in between) both
+   * still trigger a scroll. */
+  scrollToActiveSegmentRequest: number
+  requestScrollToActiveSegment: () => void
   /** New in T13 — set by the Help > Keyboard Shortcuts native menu item
    * (app/actions.ts's openShortcutsHelp), read by ShortcutsHelpModal.tsx. */
   shortcutsHelpOpen: boolean
@@ -48,6 +57,8 @@ export const createUiSlice: StateCreator<AppStore, [], [], UiSlice> = (set, get)
   selectEl: (el) => set({ selectedEl: el }),
   selectedSegmentId: null,
   selectSegment: (id) => set({ selectedSegmentId: id }),
+  scrollToActiveSegmentRequest: 0,
+  requestScrollToActiveSegment: () => set(s => ({ scrollToActiveSegmentRequest: s.scrollToActiveSegmentRequest + 1 })),
   shortcutsHelpOpen: false,
   set: (patch) => set(patch),
   goTo: (step) => set({ step }),

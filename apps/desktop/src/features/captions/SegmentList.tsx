@@ -25,6 +25,7 @@ export function SegmentList({ items }: { items: Segment[] }) {
   const currentTime = useAppStore(s => s.currentTime)
   const selectedId  = useAppStore(s => s.selectedSegmentId)
   const selectSegment = useAppStore(s => s.selectSegment)
+  const scrollRequest = useAppStore(s => s.scrollToActiveSegmentRequest)
   const set         = useAppStore(s => s.set)
 
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -32,16 +33,23 @@ export function SegmentList({ items }: { items: Segment[] }) {
 
   const virtuosoRef = useRef<VirtuosoHandle>(null)
   const lastScrolledId = useRef<number | null>(null)
+  const lastScrollRequest = useRef(scrollRequest)
 
   const activeId = segments.find(s => currentTime >= s.start && currentTime < s.end)?.id ?? null
 
   useEffect(() => {
-    if (activeId === null || activeId === lastScrolledId.current) return
+    // Scroll when the active segment changes, OR when the transport bar's
+    // now-playing chip explicitly asks for one (P3-T9) — the request
+    // counter changing forces a re-scroll even if `activeId` is unchanged
+    // (e.g. the user scrolled the list away manually mid-segment).
+    const requested = scrollRequest !== lastScrollRequest.current
+    lastScrollRequest.current = scrollRequest
+    if (activeId === null || (!requested && activeId === lastScrolledId.current)) return
     const idx = items.findIndex(s => s.id === activeId)
     if (idx < 0) return
     lastScrolledId.current = activeId
     virtuosoRef.current?.scrollToIndex({ index: idx, behavior: 'smooth', align: 'center' })
-  }, [activeId, items])
+  }, [activeId, items, scrollRequest])
 
   // ↑/↓ move selection, Enter starts editing the selected row — only while
   // nothing else is capturing keystrokes (the search input, an already-open
