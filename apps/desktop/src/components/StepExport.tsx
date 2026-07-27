@@ -1,10 +1,24 @@
 import { useEffect, useRef } from 'react'
 import { save } from '@tauri-apps/plugin-dialog'
-import { CANVAS_SIZES } from '../types'
+import { CANVAS_SIZES, type LayoutZones } from '../types'
 import WaveformCanvas from './WaveformCanvas'
 import { useAppStore } from '../store'
-import { ipc } from '../core/ipc/client'
+import { ipc, type LayoutZonesDto } from '../core/ipc/client'
 import type { AppError } from '../core/errors'
+
+/** `store.zones`'s optional avatar/subtitle fields (`LayoutZone | undefined`)
+ * become the generated RenderJobDto's explicit `LayoutZone | null` — Rust's
+ * `default_zones(layout)` fallback (PHASE3_TASKS.md T2) applies when the
+ * whole thing is null, same as the preview's `zones ?? DEFAULT_ZONES[...]`. */
+function toZonesDto(zones: LayoutZones | null): LayoutZonesDto | null {
+  if (!zones) return null
+  return {
+    waveform: zones.waveform,
+    title: zones.title,
+    avatar: zones.avatar ?? null,
+    subtitle: zones.subtitle ?? null,
+  }
+}
 
 // OPTIMIZATION_PLAN.md F3 — stage/progressPct/frame/totalFrames/etaSeconds
 // and ipc.cancelRender() were built in Phase 1 (T9) but had no UI consumer
@@ -125,6 +139,7 @@ export default function StepExport() {
         layout_template: layoutTemplate,
         output_path: outPath,
         cover_image_path: coverImagePath || null,
+        zones: toZonesDto(zones),
       })
       useAppStore.setState(s => ({ lastOutput: res, isRendering: false, progress: 100, logs: [...s.logs, `Done: ${res}`] }))
     } catch (e) {

@@ -295,6 +295,7 @@ pub fn encode_blocking(
                         &job.peaks, job.wave_color, job.wave_style, t_sec, duration,
                         job.layout, eq_snap, &fft_peaks, fft_n_buckets, &luts,
                         cover_image.as_ref(),
+                        &job.zones,
                     );
                 });
 

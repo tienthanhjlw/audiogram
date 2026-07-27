@@ -27,6 +27,7 @@
 //! **Mismatch:** a diff PNG (red = differing pixel, gray = matching context
 //! from the actual frame) is written to `target/golden-diffs/<name>.png`.
 
+use audiogram_core::contract_gen::default_zones;
 use audiogram_core::entities::{Layout, WaveStyle};
 use audiogram_render::frame::{compute_frame_luts, render_frame_into};
 use audiogram_render::wave::advance_eq_state;
@@ -95,8 +96,9 @@ fn diff_dir() -> PathBuf {
 /// `fft_n_buckets = 0` exercises `advance_eq_state`'s envelope-only
 /// fallback branch (the same one a real render falls back to when FFmpeg's
 /// PCM decode fails).
-fn render_case(layout: Layout, style: WaveStyle, t_sec: f64, peaks: &[f32]) -> Vec<u8> {
+fn render_case(layout: Layout, layout_name: &str, style: WaveStyle, t_sec: f64, peaks: &[f32]) -> Vec<u8> {
     let luts = compute_frame_luts(W, H, BG, layout);
+    let zones = default_zones(layout_name).expect("layout_name is one of LAYOUTS' own template ids");
     let mut buf = vec![0u8; W * H * 4];
 
     let eq_snapshot = if style == WaveStyle::Eq {
@@ -118,6 +120,7 @@ fn render_case(layout: Layout, style: WaveStyle, t_sec: f64, peaks: &[f32]) -> V
         &eq_snapshot, &[], 0,
         &luts,
         None,
+        &zones,
     );
     buf
 }
@@ -160,7 +163,7 @@ fn golden_frames() {
         for (style, style_name) in STYLES {
             for (frac, frac_name) in TIME_FRACTIONS {
                 let t_sec = DUR * frac;
-                let actual = render_case(layout, style, t_sec, &peaks);
+                let actual = render_case(layout, layout_name, style, t_sec, &peaks);
                 let name = format!("{layout_name}_{style_name}_{frac_name}.png");
                 let path = golden_dir().join(&name);
 

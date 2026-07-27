@@ -5,6 +5,7 @@
 // tag union to remember to check.
 import { commands } from './bindings.gen'
 import type {
+  LayoutZones as LayoutZonesDto,
   ModelInfo,
   RenderJobDto,
   Segment,
@@ -53,4 +54,4 @@ export const ipc = {
   cancelRender: () => callDirect(commands.cancelRender()),
 }
 
-export type { ModelInfo, RenderJobDto, Segment, SpectrumResult, WriteAssParams }
+export type { ModelInfo, RenderJobDto, Segment, SpectrumResult, WriteAssParams, LayoutZonesDto }

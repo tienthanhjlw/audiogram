@@ -14,6 +14,7 @@ pub use progress::{NullSink, ProgressSink};
 #[cfg(test)]
 mod tests {
     use super::frame::{compute_frame_luts, render_frame_into, CoverImage};
+    use audiogram_core::contract_gen::default_zones;
     use audiogram_core::entities::{Layout, WaveStyle};
 
     /// PACKAGE_SPLIT_PLAN.md §3.1 / PHASE1_TASKS.md T16's acceptance test for
@@ -29,6 +30,7 @@ mod tests {
         let peaks = vec![0.5f32; 1200];
 
         let luts = compute_frame_luts(w, h, bg_color, Layout::Minimal);
+        let zones = default_zones("minimal").unwrap();
         let mut buf = vec![0u8; w * h * 4];
 
         render_frame_into(
@@ -39,6 +41,7 @@ mod tests {
             &[], &[], 0,
             &luts,
             None,
+            &zones,
         );
 
         assert_eq!(buf.len(), w * h * 4);
@@ -69,6 +72,7 @@ mod tests {
         let wave_color = [0xFF, 0xFF, 0xFF];
         let peaks = vec![0.5f32; 1200];
         let luts = compute_frame_luts(w, h, bg_color, Layout::Spotify);
+        let zones = default_zones("spotify").unwrap();
 
         let cover = CoverImage { pixels: [255u8, 0, 0, 255].repeat(16), width: 4, height: 4 };
 
@@ -81,6 +85,7 @@ mod tests {
             &[], &[], 0,
             &luts,
             Some(&cover),
+            &zones,
         );
 
         let av_cy = (h as f32 * 0.26) as usize;
@@ -89,6 +94,64 @@ mod tests {
         assert_eq!(
             &buf[idx..idx + 3], &[255, 0, 0],
             "expected the cover image (solid red) at the avatar centre",
+        );
+    }
+
+    /// PHASE3_TASKS.md T2 — regression guard for the bug this task fixes:
+    /// `zones` used to be accepted by RenderJob but never actually reach
+    /// frame.rs (every layout hardcoded its own waveform/avatar fractions),
+    /// so dragging a zone in the Design mode canvas stage changed the
+    /// preview but not the exported video. This renders the same input
+    /// twice, only moving `zones.waveform.y`, and checks the pixels
+    /// actually move.
+    #[test]
+    fn zones_override_moves_the_waveform() {
+        let (w, h) = (320usize, 180usize);
+        let bg_color = [0x11, 0x18, 0x27];
+        let wave_color = [0xFF, 0xFF, 0xFF];
+        let peaks = vec![0.5f32; 1200];
+        let luts = compute_frame_luts(w, h, bg_color, Layout::Minimal);
+
+        let default_zones = default_zones("minimal").unwrap();
+        let mut moved_zones = default_zones;
+        moved_zones.waveform.y = 0.05; // default is 0.30 — move near the top instead
+
+        let mut buf_default = vec![0u8; w * h * 4];
+        render_frame_into(
+            &mut buf_default, w, h,
+            &peaks, wave_color, WaveStyle::Bar,
+            0.0, 10.0,
+            Layout::Minimal,
+            &[], &[], 0,
+            &luts,
+            None,
+            &default_zones,
+        );
+
+        let mut buf_moved = vec![0u8; w * h * 4];
+        render_frame_into(
+            &mut buf_moved, w, h,
+            &peaks, wave_color, WaveStyle::Bar,
+            0.0, 10.0,
+            Layout::Minimal,
+            &[], &[], 0,
+            &luts,
+            None,
+            &moved_zones,
+        );
+
+        assert_ne!(buf_default, buf_moved, "moving zones.waveform.y should change the rendered frame");
+
+        // Default band is y ∈ [0.30h, 0.66h]; moved band is y ∈ [0.05h, 0.41h].
+        // A row at 0.55h sits inside the default band but outside the moved
+        // one — it should have waveform content in `buf_default` and be back
+        // to plain background in `buf_moved`.
+        let sample_y = (h as f32 * 0.55) as usize;
+        let mid_x = w / 2;
+        let idx = (sample_y * w + mid_x) * 4;
+        assert_ne!(
+            &buf_default[idx..idx + 3], &buf_moved[idx..idx + 3],
+            "a row inside the default waveform band should differ once the zone moved away from it",
         );
     }
 }

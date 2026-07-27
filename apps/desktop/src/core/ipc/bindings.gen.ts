@@ -92,6 +92,8 @@ async downloadModel(name: string) : Promise<Result<null, string>> {
 
 /** user-defined types **/
 
+export type LayoutZone = { x: number; y: number; w: number; h: number }
+export type LayoutZones = { waveform: LayoutZone; title: LayoutZone; avatar: LayoutZone | null; subtitle: LayoutZone | null }
 /**
  * Runtime representation including whether the model is downloaded — sent to the frontend.
  */
@@ -105,7 +107,16 @@ export type RenderJobDto = { audio_path: string; peaks: number[]; bg_color: stri
  * mirrors WaveformCanvas.tsx's `coverImagePath`. `None`/empty means no
  * image was chosen; the renderer falls back to its placeholder gradient.
  */
-cover_image_path: string | null }
+cover_image_path: string | null; 
+/**
+ * Zone override from the Design mode canvas stage (store.zones) — mirrors
+ * the preview's `zones ?? DEFAULT_ZONES[layoutTemplate]` fallback exactly
+ * (PHASE3_TASKS.md T2, fixes the frame renderer previously never reading
+ * zones at all). `None` means the user hasn't dragged anything — RenderJob
+ * falls back to `default_zones(layout)`, the same contract-generated data
+ * the preview's DEFAULT_ZONES comes from.
+ */
+zones: LayoutZones | null }
 export type Segment = { id: number; start: number; end: number; text: string }
 export type SpectrumResult = { 
 /**

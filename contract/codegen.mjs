@@ -147,9 +147,12 @@ function genRust() {
 // run \`npm run contract:gen\` from the repo root.
 #![allow(dead_code)]
 
+use serde::Deserialize;
+use specta::Type;
+
 ${constLines}
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize, Type)]
 pub struct LayoutZone {
     pub x: f32,
     pub y: f32,
@@ -157,7 +160,7 @@ pub struct LayoutZone {
     pub h: f32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize, Type)]
 pub struct LayoutZones {
     pub waveform: LayoutZone,
     pub title: LayoutZone,
@@ -165,11 +168,11 @@ pub struct LayoutZones {
     pub subtitle: Option<LayoutZone>,
 }
 
-/// Mirrors apps/desktop/src/types.ts's DEFAULT_ZONES. Not consumed by the
-/// frame renderer yet (it still hardcodes per-template geometry in its own
-/// match arms — PHASE1_TASKS.md T14 only asks for the data to exist on both
-/// sides, not to rewire frame.rs), but ready for a future pass that reads
-/// zones dynamically instead.
+/// Mirrors apps/desktop/src/types.ts's DEFAULT_ZONES. Consumed by
+/// RenderJob's TryFrom (crates/audiogram-core/src/entities/render_job.rs)
+/// as the fallback when a RenderJobDto arrives with no zones override — the
+/// frame renderer itself reads whichever LayoutZones ends up on RenderJob,
+/// never calls this directly (PHASE3_TASKS.md T2).
 pub fn default_zones(template: &str) -> Option<LayoutZones> {
     Some(match template {
 ${matchArms}
