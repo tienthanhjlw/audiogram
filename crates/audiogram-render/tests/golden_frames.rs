@@ -7,13 +7,12 @@
 //! bar/eq/orb, to the full set in PHASE3_TASKS.md T1, ahead of Phase 3
 //! touching frame.rs/wave/* for real) — at a fixed, deterministic input
 //! (canvas size, colors, peaks, EQ state chain) and byte-compares the RGBA
-//! buffer against a PNG committed under `tests/golden/`. This crate draws no
-//! text (title/subtitle burn-in are ffmpeg drawtext/libass, outside
-//! `audiogram-render` — see OPTIMIZATION_PLAN.md F1; Phase 3 T4 moves title
-//! rendering into this crate, at which point this file gains a font-based
-//! source of cross-machine flakiness it doesn't have yet), so today every
-//! pixel comes from fills, blends, and analytic circle/gradient math — an
-//! exact byte match is expected to reproduce identically on any platform.
+//! buffer against a PNG committed under `tests/golden/`. Renders all
+//! combinations with no title, then extends coverage to include title text
+//! (Phase 4 T3): 6 additional frames (one per layout, with text) render with
+//! cosmic-text (bundled Inter font) to catch any text-rendering regressions.
+//! Both paths (layout geometry + title text) are deterministic across all
+//! platforms when fonts are bundled and no system font fallback is used.
 //!
 //! **First run / intentional geometry change:** delete the golden PNG(s)
 //! that should change (or the whole `tests/golden/` dir to reseed
@@ -28,8 +27,9 @@
 //! from the actual frame) is written to `target/golden-diffs/<name>.png`.
 
 use audiogram_core::contract_gen::default_zones;
-use audiogram_core::entities::{Layout, WaveStyle};
-use audiogram_render::frame::{compute_frame_luts, render_frame_into};
+use audiogram_core::entities::{Layout, TitleAlign, WaveStyle};
+use audiogram_render::frame::{compute_frame_luts, compute_title_pixels, render_frame_into, TitleSpec};
+use audiogram_render::text::{new_font_system, new_swash_cache};
 use audiogram_render::wave::advance_eq_state;
 use audiogram_spectrum::EQ_BANDS;
 use std::path::{Path, PathBuf};
@@ -96,7 +96,7 @@ fn diff_dir() -> PathBuf {
 /// `fft_n_buckets = 0` exercises `advance_eq_state`'s envelope-only
 /// fallback branch (the same one a real render falls back to when FFmpeg's
 /// PCM decode fails).
-fn render_case(layout: Layout, layout_name: &str, style: WaveStyle, t_sec: f64, peaks: &[f32]) -> Vec<u8> {
+fn render_case(layout: Layout, layout_name: &str, style: WaveStyle, t_sec: f64, peaks: &[f32], title: &str) -> Vec<u8> {
     let luts = compute_frame_luts(W, H, BG, layout);
     let zones = default_zones(layout_name).expect("layout_name is one of LAYOUTS' own template ids");
     let mut buf = vec![0u8; W * H * 4];
@@ -113,6 +113,24 @@ fn render_case(layout: Layout, layout_name: &str, style: WaveStyle, t_sec: f64, 
         vec![]
     };
 
+    // Compute title pixels if text is provided
+    let title_pixels = if !title.is_empty() {
+        let spec = TitleSpec {
+            text: title.to_string(),
+            color: WC,
+            align: TitleAlign::Center,
+            bold: true,
+            italic: false,
+            font_size_pct: 100,
+            font_name: "Inter".to_string(),
+        };
+        let mut font_system = new_font_system();
+        let mut swash_cache = new_swash_cache();
+        compute_title_pixels(W, H, layout, &zones, Some(&spec), &mut font_system, &mut swash_cache)
+    } else {
+        vec![]
+    };
+
     render_frame_into(
         &mut buf, W, H,
         peaks, WC, style, t_sec, DUR,
@@ -121,7 +139,7 @@ fn render_case(layout: Layout, layout_name: &str, style: WaveStyle, t_sec: f64, 
         &luts,
         None,
         &zones,
-        &[], // no title — golden goldens intentionally don't cover text yet (T5)
+        &title_pixels,
     );
     buf
 }
@@ -164,7 +182,7 @@ fn golden_frames() {
         for (style, style_name) in STYLES {
             for (frac, frac_name) in TIME_FRACTIONS {
                 let t_sec = DUR * frac;
-                let actual = render_case(layout, layout_name, style, t_sec, &peaks);
+                let actual = render_case(layout, layout_name, style, t_sec, &peaks, "");
                 let name = format!("{layout_name}_{style_name}_{frac_name}.png");
                 let path = golden_dir().join(&name);
 
@@ -185,6 +203,38 @@ fn golden_frames() {
                     mismatches.push(format!("{name} (diff: {})", diff_path.display()));
                 }
             }
+        }
+    }
+
+    // Phase 4 T3: render title-bearing frames (one per layout, to cover text
+    // rendering in golden tests). Uses same time fraction as the no-title
+    // variants to keep the test matrix manageable. Text = "The Quick Brown Fox
+    // Jumps" (long enough to exercise line-wrapping logic).
+    let title_text = "The Quick Brown Fox Jumps";
+    for (layout, layout_name) in LAYOUTS {
+        // Render at t=middle (50%) with bar style (most common default).
+        let t_sec = DUR * 0.5;
+        let style = WaveStyle::Bar;
+        let style_name = "bar";
+        let actual = render_case(layout, layout_name, style, t_sec, &peaks, title_text);
+        let name = format!("{layout_name}_{style_name}_50_title.png");
+        let path = golden_dir().join(&name);
+
+        if !path.exists() {
+            save_rgba_png(&path, &actual);
+            generated.push(name);
+            continue;
+        }
+
+        let golden = image::open(&path)
+            .unwrap_or_else(|e| panic!("failed to open golden {name}: {e}"))
+            .to_rgba8();
+
+        if golden.as_raw().len() != actual.len() || golden.as_raw() != &actual {
+            std::fs::create_dir_all(diff_dir()).ok();
+            let diff_path = diff_dir().join(&name);
+            save_diff_png(&diff_path, golden.as_raw(), &actual);
+            mismatches.push(format!("{name} (diff: {})", diff_path.display()));
         }
     }
 
