@@ -7,6 +7,7 @@
 pub mod frame;
 pub mod pixel;
 pub mod progress;
+pub mod scene_frame;
 pub mod text;
 pub mod wave;
 

@@ -154,7 +154,7 @@ pub enum TextRole {
     Title, Subtitle, Caption, Freeform,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub enum TextAlign {
     Left, Center, Right,
@@ -216,7 +216,7 @@ pub struct Timing {
 
 // ── The node ─────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub enum SceneNodeType {
     Waveform, Text, Image, Sticker, Video, Group,
