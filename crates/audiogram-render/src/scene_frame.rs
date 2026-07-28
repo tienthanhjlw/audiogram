@@ -53,9 +53,12 @@ fn find_image<'a>(images: &'a [SceneImage<'a>], src: &str) -> Option<&'a SceneIm
 
 /// Draws every node in `nodes`, sorted by `z`, into `buf` (`w × h × 4` RGBA).
 ///
-/// T4 scope (mirrors nodeRenderer.ts's T3 scope): no `timing` filtering yet
-/// (T8 — every node is always visible here), no group composition yet (T10 —
-/// each node renders with its own `transform` as-is, root-space).
+/// Nodes with a `timing` window are skipped outside `[start, end]` (P5-T8);
+/// animIn/animOut presets adjust the drawn transform near the window's
+/// edges (crate::timing::effective_transform).
+///
+/// T10 scope still pending: no group composition yet (each node renders
+/// with its own `transform` as-is, root-space).
 #[allow(clippy::too_many_arguments)]
 pub fn render_scene_frame_into(buf: &mut [u8], w: usize, h: usize, nodes: &[SceneNode], shared: &mut SceneShared) {
     debug_assert_eq!(buf.len(), w * h * 4);
@@ -63,7 +66,11 @@ pub fn render_scene_frame_into(buf: &mut [u8], w: usize, h: usize, nodes: &[Scen
     sorted.sort_by_key(|n| n.z);
 
     for node in sorted {
+        if !crate::timing::is_visible_at(node, shared.t_sec, shared.dur) {
+            continue;
+        }
         let Some(props) = &node.props else { continue };
+        let t = crate::timing::effective_transform(node, shared.t_sec, shared.dur);
         match (node.r#type, props) {
             (SceneNodeType::Waveform, SceneNodeProps::Waveform(p)) => {
                 if shared.peaks.is_empty() {
@@ -71,7 +78,6 @@ pub fn render_scene_frame_into(buf: &mut [u8], w: usize, h: usize, nodes: &[Scen
                 }
                 let style = WaveStyle::try_from(p.style.as_str()).unwrap_or(WaveStyle::Bar);
                 let wc = hex_to_rgb(&p.color);
-                let t = &node.transform;
                 render_wave(
                     buf, w, h, shared.peaks, wc, style, shared.t_sec, shared.dur,
                     (t.x * w as f32) as usize, t.y * h as f32, (t.w * w as f32) as usize, t.h * h as f32,
@@ -82,7 +88,6 @@ pub fn render_scene_frame_into(buf: &mut [u8], w: usize, h: usize, nodes: &[Scen
                 if p.text.is_empty() {
                     continue;
                 }
-                let t = &node.transform;
                 // `size` is px at a 1080-tall canvas (scene_node.rs / scene.ts contract).
                 let size_px = h as f32 * (p.size / 1080.0);
                 let style = TextStyle {
@@ -100,7 +105,6 @@ pub fn render_scene_frame_into(buf: &mut [u8], w: usize, h: usize, nodes: &[Scen
             }
             (SceneNodeType::Image, SceneNodeProps::Image(p)) => {
                 let Some(img) = find_image(shared.images, &p.src) else { continue };
-                let t = &node.transform;
                 let x0 = (t.x * w as f32) as usize;
                 let y0 = (t.y * h as f32) as usize;
                 let x1 = ((t.x + t.w) * w as f32) as usize;
@@ -315,5 +319,57 @@ mod tests {
         // would block every later task's required `cargo test --workspace` (§A.2) on
         // machine-dependent timing noise; the real gate is this comment + the reported
         // number above, tracked for M1's "every budget has a real number" close-out check.
+    }
+
+    /// P5-T8 §A.6 stand-in: exercises the exact `render_scene_frame_into`
+    /// call `encode_blocking`'s Stage 2 makes (infrastructure/ffmpeg/render/
+    /// mod.rs), with a `timing`-windowed node, at 3 points in a render — one
+    /// before the window (must not draw), one inside it (must draw), one
+    /// after (must not draw). A real UI-triggered export isn't scriptable
+    /// from this environment (T5's note applies here too), but this proves
+    /// the actual production render function honors `timing` end to end,
+    /// not just the pure `crate::timing` helpers in isolation.
+    #[test]
+    fn timing_window_appears_and_disappears_across_frames() {
+        let (w, h) = (320usize, 180usize);
+        let peaks: Vec<f32> = (0..300).map(|i| 0.4 + 0.4 * (i as f32 * 0.1).sin().abs()).collect();
+        let node = SceneNode {
+            id: "t1".into(),
+            r#type: SceneNodeType::Text,
+            parent_id: None,
+            transform: make_transform(0.2, 0.2, 0.6, 0.2),
+            z: 0,
+            timing: Some(audiogram_core::entities::scene_node::Timing { start: 2.0, end: 5.0 }),
+            anim_in: None,
+            anim_out: None,
+            keyframes: vec![],
+            props: Some(SceneNodeProps::Text(audiogram_core::entities::scene_node::TextProps {
+                text: "Appears at 2s".into(),
+                role: audiogram_core::entities::scene_node::TextRole::Freeform,
+                bound_to_transcript: false, color: "#FFFFFF".into(), font: "Arial".into(),
+                size: 60.0, align: audiogram_core::entities::scene_node::TextAlign::Center,
+                bold: false, italic: false,
+            })),
+        };
+        let mut font_system = text::new_font_system();
+        let mut swash_cache = text::new_swash_cache();
+
+        let render_at = |t_sec: f64, font_system: &mut FontSystem, swash_cache: &mut SwashCache| -> Vec<u8> {
+            let mut buf = vec![0u8; w * h * 4];
+            let mut shared = SceneShared {
+                peaks: &peaks, t_sec, dur: 10.0, eq_snapshot: &[], fft_peaks: &[], fft_n_buckets: 0,
+                images: &[], font_system, swash_cache,
+            };
+            render_scene_frame_into(&mut buf, w, h, std::slice::from_ref(&node), &mut shared);
+            buf
+        };
+
+        let before = render_at(1.0, &mut font_system, &mut swash_cache);
+        let inside = render_at(3.5, &mut font_system, &mut swash_cache);
+        let after  = render_at(6.0, &mut font_system, &mut swash_cache);
+
+        assert!(before.iter().all(|&b| b == 0), "node outside its timing window must not draw");
+        assert!(after.iter().all(|&b| b == 0), "node past its timing window must not draw");
+        assert!(inside.iter().any(|&b| b != 0), "node inside its timing window must draw");
     }
 }

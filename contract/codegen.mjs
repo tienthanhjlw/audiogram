@@ -306,6 +306,11 @@ export interface VideoProps {
 
 export type SceneNodeType = ${nodeTypeUnion}
 
+export interface Timing {
+  start: number  // seconds
+  end: number    // seconds
+}
+
 // Internally tagged on \`type\` — mirrors Rust's \`#[serde(tag = "type")]\` on
 // SceneNodeProps exactly (crates/audiogram-core/src/entities/scene_node.rs).
 // A props object sent over IPC without this tag fails to deserialize on the
@@ -330,7 +335,7 @@ export interface SceneNode {
   transform: Transform
   z: number
   /** Primary show/hide window. Absent = node is visible for the entire video. */
-  timing?: { start: number; end: number }
+  timing?: Timing
   /** Entry animation, applied over [timing.start, timing.start + animIn.duration]. */
   animIn?: AnimationClip
   /** Exit animation, applied over [timing.end - animOut.duration, timing.end]. */

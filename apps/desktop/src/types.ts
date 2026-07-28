@@ -68,6 +68,7 @@ export type {
   TextAlign,
   TextProps,
   TextRole,
+  Timing,
   Transform,
   VideoProps,
   WaveformProps,

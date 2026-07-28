@@ -174,6 +174,27 @@ describe('drawSceneFrame parity with legacy drawFrame (minimal layout)', () => {
   })
 })
 
+describe('drawSceneFrame timing filter (P5-T8)', () => {
+  it('skips a node outside its timing window and draws it inside it', () => {
+    const node: SceneNode = {
+      id: 'w1', type: 'waveform',
+      transform: { x: 0.02, y: 0.3, w: 0.96, h: 0.36, rotation: 0, opacity: 1 },
+      z: 0,
+      timing: { start: 5, end: 8 },
+      props: { type: 'waveform', style: 'bar', color: '#7C5CFF' },
+    }
+    const shared = makeSharedFromSpec(makeLegacySpec())
+
+    const outside = mockCtx()
+    drawSceneFrame(outside.ctx, W, H, [node], 1.0, shared)
+    expect(outside.calls.length).toBe(0)
+
+    const inside = mockCtx()
+    drawSceneFrame(inside.ctx, W, H, [node], 6.0, shared)
+    expect(inside.calls.length).toBeGreaterThan(0)
+  })
+})
+
 describe('drawSceneFrame performance (P5-T3 budget: <=16ms for 20 nodes @1080p)', () => {
   it('renders 20 mixed nodes under budget', () => {
     const nodes: SceneNode[] = Array.from({ length: 20 }, (_, i) => ({

@@ -4,11 +4,13 @@
 //! resolver) stays in the app crate, which calls [`frame::render_frame_into`]
 //! per frame and reports progress through [`progress::ProgressSink`] instead
 //! of an `AppHandle` directly.
+pub mod anim_presets;
 pub mod frame;
 pub mod pixel;
 pub mod progress;
 pub mod scene_frame;
 pub mod text;
+pub mod timing;
 pub mod wave;
 
 pub use progress::{NullSink, ProgressSink};

@@ -79,7 +79,7 @@ impl Transform {
 // ── Animation ────────────────────────────────────────────────────────────────
 
 /// Mirrors `AnimationId` in scene.ts — keep in sync with scene_schema.json `animationPresets`.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "kebab-case")]
 pub enum AnimationId {
     Fade,

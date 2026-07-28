@@ -1,7 +1,8 @@
 import type { StateCreator } from 'zustand'
 import {
   LAYOUT_TEMPLATES,
-  type LayoutTemplate, type LayoutZones, type SceneNode, type SceneNodeProps, type Transform, type WaveStyle,
+  type AnimationClip, type LayoutTemplate, type LayoutZones, type SceneNode, type SceneNodeProps,
+  type Timing, type Transform, type WaveStyle,
 } from '../types'
 import type { AppStore } from './index'
 
@@ -43,6 +44,11 @@ export interface DesignSlice {
    * reorder buttons — P5-T7 ships buttons before drag-reorder). */
   moveNodeZ: (id: string, direction: 'up' | 'down') => void
   setSelectedNodeIds: (ids: string[]) => void
+  /** Sets or clears the node's `timing` window (P5-T8). `undefined` = always
+   * visible (removes the constraint entirely, not a zero-length window). */
+  updateNodeTiming: (id: string, timing: Timing | undefined) => void
+  /** Sets or clears the node's `animIn`/`animOut` clip. */
+  updateNodeAnim: (id: string, which: 'animIn' | 'animOut', clip: AnimationClip | undefined) => void
   /** Applies a template's defaults (wave style/color, bg color, karaoke) and
    * resets zones — originally StepLayout.tsx's local `handleTemplateChange`
    * (P1-T7 moved it here so the Design mode template gallery could call it
@@ -89,6 +95,12 @@ export const createDesignSlice: StateCreator<AppStore, [], [], DesignSlice> = (s
     }
   }),
   setSelectedNodeIds: (ids) => set({ selectedNodeIds: ids }),
+  updateNodeTiming: (id, timing) => set(s => ({
+    nodes: s.nodes.map(n => n.id === id ? { ...n, timing } : n),
+  })),
+  updateNodeAnim: (id, which, clip) => set(s => ({
+    nodes: s.nodes.map(n => n.id === id ? { ...n, [which]: clip } : n),
+  })),
   applyTemplate: (id) => {
     const tDef = LAYOUT_TEMPLATES.find(t => t.id === id)!
     set({

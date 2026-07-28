@@ -59,6 +59,7 @@ export function PreviewCanvas({ width, ratio, className, showCaptions = false }:
   const titleItalic    = useAppStore(s => s.titleItalic)
   const peaks          = useAppStore(s => s.peaks)
   const duration       = useAppStore(s => s.duration)
+  const nodes          = useAppStore(s => s.nodes)
   // Each selector returns either a primitive or the store's own array
   // reference — never a freshly built one. The caption gating happens
   // *after* the selectors, not inside them (see NO_SEGMENTS above).
@@ -157,14 +158,13 @@ export function PreviewCanvas({ width, ratio, className, showCaptions = false }:
         subtitlePreview,
       }
       if (useNodeRenderer) {
-        // P5-T3: node renderer has no data source yet (store.nodes lands in T6,
-        // Layers panel to author nodes in T7) — draws an empty scene so the flag
-        // is wired end-to-end without breaking preview when flipped on early.
-        drawSceneFrame(ctx, W, H, [], spec.t, {
+        // P5-T6/T7 gave the store real nodes[] + a way to author them
+        // (Layers panel) — draws them for real now, timing-filtered (T8).
+        drawSceneFrame(ctx, W, H, nodes, spec.t, {
           peaks, waveTime, waveDur, waveLoop: !hasAudio,
           eqState: eqStateRef.current, fftPeaks: fftPeaksRef.current, fftBuckets: fftBucketsRef.current,
           images: new Map(),
-        })
+        }, { dur: duration })
       } else {
         drawFrame(ctx, W, H, spec)
       }
@@ -173,7 +173,7 @@ export function PreviewCanvas({ width, ratio, className, showCaptions = false }:
   }, [
     peaks, waveColor, bgColor, waveStyle, title, fontSize, fontName, karaokeEnabled, karaokeColor,
     captionSegments, subtitleColor, subtitleYPct, zones, layoutTemplate, titleColor, titleAlign,
-    titleBold, titleItalic, subtitlePreview, duration, fftPeaksRef, fftBucketsRef,
+    titleBold, titleItalic, subtitlePreview, duration, fftPeaksRef, fftBucketsRef, nodes,
   ])
 
   const LONG = 720

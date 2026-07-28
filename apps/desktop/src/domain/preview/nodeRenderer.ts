@@ -4,6 +4,7 @@
 // `useNodeRenderer` flag in PreviewCanvas/thumbnailer; both paths coexist for
 // side-by-side comparison through T3–T10.
 import { SceneNode } from '../../types'
+import { computeEffectiveTransform, isVisibleAt } from '../scene/timing'
 import { drawImageNode, ImageMap } from './nodeRenderers/image'
 import { drawTextNode } from './nodeRenderers/text'
 import { drawWaveformNode, WaveformShared } from './nodeRenderers/waveform'
@@ -22,17 +23,32 @@ const NODE_RENDERERS: Partial<Record<SceneNode['type'], NodeRenderer>> = {
   image: (ctx, W, H, node, shared) => drawImageNode(ctx, W, H, node, shared.images),
 }
 
+/** Extra info for the visibility/animation window — the video's total
+ * duration, needed to clamp a `timing.end` beyond it (P5-T8 edge case). */
+export interface SceneTimingContext {
+  dur: number
+}
+
 /**
- * Draws every node visible at time `t`, in z-order.
+ * Draws every node visible at time `t`, in z-order. A node with `timing` is
+ * skipped entirely outside its `[start, end]` window (P5-T8); animIn/animOut
+ * presets (domain/scene/animPresets.ts) adjust the drawn transform near the
+ * window's edges.
  *
- * T3 scope: no `timing` filtering yet (added in T8 — all nodes are always
- * visible here), no group composition yet (T10 — nodes render with their own
- * `transform` as-is, root-space).
+ * T10 scope still pending: no group composition yet (nodes render with
+ * their own `transform` as-is, root-space).
  */
-export function drawSceneFrame(ctx: CanvasRenderingContext2D, W: number, H: number, nodes: SceneNode[], _t: number, shared: SceneShared): void {
+export function drawSceneFrame(
+  ctx: CanvasRenderingContext2D, W: number, H: number, nodes: SceneNode[], t: number, shared: SceneShared,
+  timingCtx: SceneTimingContext = { dur: 0 },
+): void {
   const sorted = [...nodes].sort((a, b) => a.z - b.z)
   for (const node of sorted) {
+    if (!isVisibleAt(node, t, timingCtx.dur)) continue
     const renderer = NODE_RENDERERS[node.type]
-    if (renderer) renderer(ctx, W, H, node, shared)
+    if (!renderer) continue
+    const transform = computeEffectiveTransform(node, t, timingCtx.dur)
+    const effectiveNode = transform === node.transform ? node : { ...node, transform }
+    renderer(ctx, W, H, effectiveNode, shared)
   }
 }
