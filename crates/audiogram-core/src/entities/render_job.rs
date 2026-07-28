@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use specta::Type;
 use crate::{contract_gen::{default_zones, LayoutZones}, util::hex_to_rgb, AppError};
-use super::{Layout, TitleAlign, WaveStyle};
+use super::{Layout, SceneNode, TitleAlign, WaveStyle};
 
 /// Raw DTO from Tauri IPC — mirrors the JS object sent by the frontend verbatim.
 #[derive(Deserialize, Debug, Type)]
@@ -41,6 +41,14 @@ pub struct RenderJobDto {
     pub title_align: Option<String>,
     pub title_bold: Option<bool>,
     pub title_italic: Option<bool>,
+    /// Scene graph nodes (Phase 5 T5) — when present, the render pipeline
+    /// draws via `audiogram_render::scene_frame::render_scene_frame_into`
+    /// instead of the legacy `render_frame_into` layout match-arms. `None`
+    /// (the default — no frontend caller sets this yet outside the
+    /// `VITE_USE_NODE_RENDERER` flag) keeps the legacy export path
+    /// byte-identical to before this field existed (PHASE5_TASKS.md §A.6 —
+    /// this is the fix for the historical "zones never reached export" bug).
+    pub nodes: Option<Vec<SceneNode>>,
 }
 
 /// Validated domain entity — strings parsed to enums, hex colors decoded, defaults applied.
@@ -67,6 +75,7 @@ pub struct RenderJob {
     pub title_align: TitleAlign,
     pub title_bold: bool,
     pub title_italic: bool,
+    pub nodes: Option<Vec<SceneNode>>,
 }
 
 impl TryFrom<RenderJobDto> for RenderJob {
@@ -116,6 +125,7 @@ impl TryFrom<RenderJobDto> for RenderJob {
             title_align,
             title_bold: dto.title_bold.unwrap_or(false),
             title_italic: dto.title_italic.unwrap_or(false),
+            nodes: dto.nodes,
         })
     }
 }
@@ -146,6 +156,7 @@ mod tests {
             title_align: None,
             title_bold: None,
             title_italic: None,
+            nodes: None,
         }
     }
 
@@ -212,5 +223,37 @@ mod tests {
         let mut dto = minimal_dto(Some("minimal"), None);
         dto.title_align = Some("diagonal".into());
         assert!(RenderJob::try_from(dto).is_err());
+    }
+
+    /// PHASE5_TASKS.md T5 step 5 — `render_job_accepts_nodes`: a DTO with
+    /// `nodes: Some(..)` resolves to `RenderJob.nodes: Some(..)` verbatim;
+    /// a DTO without it resolves to `None` (legacy export path, unchanged).
+    #[test]
+    fn render_job_accepts_nodes() {
+        use super::super::scene_node::{SceneNodeProps, SceneNodeType, Transform, WaveformProps};
+
+        let mut dto = minimal_dto(Some("minimal"), None);
+        let node = SceneNode {
+            id: "w1".into(),
+            r#type: SceneNodeType::Waveform,
+            parent_id: None,
+            transform: Transform::identity(),
+            z: 0,
+            timing: None,
+            anim_in: None,
+            anim_out: None,
+            keyframes: vec![],
+            props: Some(SceneNodeProps::Waveform(WaveformProps { style: "bar".into(), color: "#FFFFFF".into() })),
+        };
+        dto.nodes = Some(vec![node]);
+        let job = RenderJob::try_from(dto).expect("valid dto");
+        assert_eq!(job.nodes.as_ref().map(|n| n.len()), Some(1));
+    }
+
+    #[test]
+    fn render_job_nodes_defaults_to_none() {
+        let dto = minimal_dto(Some("minimal"), None);
+        let job = RenderJob::try_from(dto).expect("valid dto");
+        assert!(job.nodes.is_none());
     }
 }

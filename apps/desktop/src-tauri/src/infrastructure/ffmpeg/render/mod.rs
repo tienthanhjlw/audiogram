@@ -29,9 +29,12 @@ use std::{
 use rayon::prelude::*;
 use tauri::{AppHandle, Emitter};
 
+use std::cell::RefCell;
+use audiogram_core::entities::SceneNodeProps;
 use audiogram_core::util::escape_drawtext;
 use audiogram_render::{
     frame::{compute_frame_luts, compute_title_pixels, render_frame_into, CoverImage, TitleSpec},
+    scene_frame::{render_scene_frame_into, SceneImage, SceneShared},
     text as text_engine,
     wave::{advance_eq_state, effect_for},
     ProgressSink,
@@ -44,6 +47,18 @@ use crate::{
     },
     shared::{util::emit_log, AppError},
 };
+
+thread_local! {
+    // One FontSystem/SwashCache per rayon worker thread, built lazily on
+    // first use and reused across every frame that thread renders — cosmic-
+    // text's types are !Sync (text.rs's own doc comment), and building a
+    // fresh FontSystem per frame would reload every bundled font every call.
+    // Scene-node text still re-shapes per frame (TODO(p5-t4) in scene_frame.rs
+    // — a real fix wants a per-node shape cache, not built yet), but at least
+    // font loading itself only happens once per thread, not once per frame.
+    static SCENE_TEXT_ENGINE: RefCell<(text_engine::FontSystem, text_engine::SwashCache)> =
+        RefCell::new((text_engine::new_font_system(), text_engine::new_swash_cache()));
+}
 
 /// Fans every `RenderEvent` out to the structured `render_event` channel
 /// (TECH_ARCHITECTURE.md §2.3) and, for the 2 variants the pre-T16 pipeline
@@ -204,6 +219,33 @@ pub fn encode_blocking(
         }
     });
 
+    // ── Stage 1c'': Scene node image decode (Phase 5 T5 step 4) ──────────────
+    // Every `image`-type node's `src` is decoded exactly once here, not in
+    // the per-frame Stage 2 loop — same rule as the cover image above, now
+    // generalized to N images instead of one.
+    let scene_image_srcs: std::collections::BTreeSet<String> = job.nodes.as_deref()
+        .into_iter()
+        .flatten()
+        .filter_map(|n| match &n.props {
+            Some(SceneNodeProps::Image(p)) => Some(p.src.clone()),
+            _ => None,
+        })
+        .collect();
+    let scene_images: Vec<(String, image::RgbaImage)> = scene_image_srcs.into_iter()
+        .filter_map(|src| match image::open(&src) {
+            Ok(decoded) => {
+                let decoded = apply_exif_orientation(decoded, read_exif_orientation(Path::new(&src)));
+                let rgba = decoded.to_rgba8();
+                emit_log(&app, format!("Scene image: {src} ({}×{})", rgba.width(), rgba.height()));
+                Some((src, rgba))
+            }
+            Err(e) => {
+                emit_log(&app, format!("Scene image decode failed, skipping node: {src} ({e})"));
+                None
+            }
+        })
+        .collect();
+
     // ── Stage 1d: Frame LUTs ──────────────────────────────────────────────────
     emit_log(&app, "Building frame LUTs…");
     let luts = compute_frame_luts(w, h, job.bg_color, job.layout);
@@ -278,6 +320,9 @@ pub fn encode_blocking(
         let frame_size    = w * h * 4;
         let progress_step = (total_frames / 100).max(1);
         let empty_eq      = &[][..];
+        let scene_image_refs: Vec<SceneImage> = scene_images.iter()
+            .map(|(src, img)| SceneImage { src, pixels: img.as_raw(), width: img.width(), height: img.height() })
+            .collect();
 
         let mut batch_buf = vec![0u8; batch_size * frame_size];
 
@@ -311,14 +356,46 @@ pub fn encode_blocking(
                     } else {
                         empty_eq
                     };
-                    render_frame_into(
-                        frame, w, h,
-                        &job.peaks, job.wave_color, job.wave_style, t_sec, duration,
-                        job.layout, eq_snap, &fft_peaks, fft_n_buckets, &luts,
-                        cover_image.as_ref(),
-                        &job.zones,
-                        &title_pixels,
-                    );
+                    match job.nodes.as_deref() {
+                        // ── Node renderer path (Phase 5 T5) — the actual switch: any
+                        // job carrying `nodes` renders through the scene graph instead
+                        // of the legacy 6 layout match-arms. This is what makes Design
+                        // mode's node edits reach the exported video, not just the
+                        // preview (PHASE5_TASKS.md §A.6 / historical P-1 bug).
+                        Some(nodes) => {
+                            // Stage A equivalent: flat background fill from the same
+                            // vignette LUT the legacy path uses — scene nodes composite
+                            // on top of this, same as frame.rs's Stage A + Stage B/C.
+                            for y in 0..h {
+                                let [r, g, b] = luts.vignette_rows[y];
+                                let row = &mut frame[y * w * 4..(y + 1) * w * 4];
+                                for c in row.chunks_exact_mut(4) {
+                                    c[0] = r; c[1] = g; c[2] = b; c[3] = 255;
+                                }
+                            }
+                            SCENE_TEXT_ENGINE.with(|cell| {
+                                let mut engine = cell.borrow_mut();
+                                let (font_system, swash_cache) = &mut *engine;
+                                let mut shared = SceneShared {
+                                    peaks: &job.peaks, t_sec, dur: duration,
+                                    eq_snapshot: eq_snap, fft_peaks: &fft_peaks, fft_n_buckets,
+                                    images: &scene_image_refs,
+                                    font_system, swash_cache,
+                                };
+                                render_scene_frame_into(frame, w, h, nodes, &mut shared);
+                            });
+                        }
+                        None => {
+                            render_frame_into(
+                                frame, w, h,
+                                &job.peaks, job.wave_color, job.wave_style, t_sec, duration,
+                                job.layout, eq_snap, &fft_peaks, fft_n_buckets, &luts,
+                                cover_image.as_ref(),
+                                &job.zones,
+                                &title_pixels,
+                            );
+                        }
+                    }
                 });
 
             // Stage 3: write each frame to FFmpeg stdin in order ──────────────

@@ -92,6 +92,13 @@ export function useRenderExport() {
         title_align: titleAlign,
         title_bold: titleBold,
         title_italic: titleItalic,
+        // P5-T5: RenderJobDto carries `nodes` end-to-end now (the actual
+        // export-path switch — see infrastructure/ffmpeg/render/mod.rs).
+        // Always `null` here until T6 gives the store a real `nodes[]` to
+        // send — store.nodes doesn't exist yet, so there's nothing to wire
+        // up on this end besides the field itself. `null` = legacy export
+        // path, byte-identical to before this field existed.
+        nodes: null,
       })
       useAppStore.setState(s => ({ lastOutput: res, isRendering: false, exportSheet: 'success', exportSheetMinimized: false, logs: [...s.logs, `Done: ${res}`] }))
     } catch (e) {

@@ -306,7 +306,19 @@ export interface VideoProps {
 
 export type SceneNodeType = ${nodeTypeUnion}
 
-export type SceneNodeProps = WaveformProps | TextProps | ImageProps | StickerProps | VideoProps
+// Internally tagged on \`type\` — mirrors Rust's \`#[serde(tag = "type")]\` on
+// SceneNodeProps exactly (crates/audiogram-core/src/entities/scene_node.rs).
+// A props object sent over IPC without this tag fails to deserialize on the
+// Rust side (Phase 5 T5 found this the hard way: the untagged version this
+// replaced type-checked fine in TS but silently couldn't round-trip through
+// RenderJobDto). The tag values are exactly the node's own \`type\`, so
+// \`node.props.type === node.type\` always holds for a well-formed node.
+export type SceneNodeProps =
+  | ({ type: 'waveform' } & WaveformProps)
+  | ({ type: 'text' } & TextProps)
+  | ({ type: 'image' } & ImageProps)
+  | ({ type: 'sticker' } & StickerProps)
+  | ({ type: 'video' } & VideoProps)
 
 export interface SceneNode {
   id: string

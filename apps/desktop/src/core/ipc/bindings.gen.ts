@@ -92,6 +92,24 @@ async downloadModel(name: string) : Promise<Result<null, string>> {
 
 /** user-defined types **/
 
+export type AnimationClip = { preset: AnimationId; duration: number }
+/**
+ * Mirrors `AnimationId` in scene.ts — keep in sync with scene_schema.json `animationPresets`.
+ */
+export type AnimationId = "fade" | "slide-up" | "slide-down" | "scale-in"
+/**
+ * Mirrors `Easing` in scene.ts — keep in sync with `easingTypes`.
+ */
+export type Easing = "linear" | "ease-in" | "ease-out" | "ease-in-out" | "hold"
+export type Fit = "cover" | "contain"
+export type ImageProps = { src: string; fit: Fit; shape: ImageShape | null }
+export type ImageShape = "rect" | "circle" | "rounded"
+export type Keyframe = { t: number; value: number; easing: Easing }
+/**
+ * Mirrors `KeyframeProperty` in scene.ts.
+ */
+export type KeyframeProperty = "x" | "y" | "w" | "h" | "rotation" | "opacity"
+export type KeyframeTrack = { property: KeyframeProperty; keyframes: Keyframe[] }
 export type LayoutZone = { x: number; y: number; w: number; h: number }
 export type LayoutZones = { waveform: LayoutZone; title: LayoutZone; avatar: LayoutZone | null; subtitle: LayoutZone | null }
 /**
@@ -125,7 +143,32 @@ zones: LayoutZones | null;
  * never bold/italic). `None` for each means the store's own default
  * (white / center / not bold / not italic).
  */
-title_color: string | null; title_align: string | null; title_bold: boolean | null; title_italic: boolean | null }
+title_color: string | null; title_align: string | null; title_bold: boolean | null; title_italic: boolean | null; 
+/**
+ * Scene graph nodes (Phase 5 T5) — when present, the render pipeline
+ * draws via `audiogram_render::scene_frame::render_scene_frame_into`
+ * instead of the legacy `render_frame_into` layout match-arms. `None`
+ * (the default — no frontend caller sets this yet outside the
+ * `VITE_USE_NODE_RENDERER` flag) keeps the legacy export path
+ * byte-identical to before this field existed (PHASE5_TASKS.md §A.6 —
+ * this is the fix for the historical "zones never reached export" bug).
+ */
+nodes: SceneNode[] | null }
+/**
+ * A single composable element on the scene graph.
+ * Mirrors `SceneNode` in packages/contract/src/scene.ts exactly.
+ */
+export type SceneNode = { id: string; type: SceneNodeType; 
+/**
+ * Id of parent group. `None` = root level.
+ * Children derived by `nodes.iter().filter(|n| n.parent_id.as_deref() == Some(group_id))`.
+ */
+parentId: string | null; transform: Transform; z: number; timing: Timing | null; animIn: AnimationClip | null; animOut: AnimationClip | null; keyframes?: KeyframeTrack[]; props: SceneNodeProps | null }
+/**
+ * Discriminated union of all node prop variants.
+ */
+export type SceneNodeProps = ({ type: "waveform" } & WaveformProps) | ({ type: "text" } & TextProps) | ({ type: "image" } & ImageProps) | ({ type: "sticker" } & StickerProps) | ({ type: "video" } & VideoProps)
+export type SceneNodeType = "waveform" | "text" | "image" | "sticker" | "video" | "group"
 export type Segment = { id: number; start: number; end: number; text: string }
 export type SpectrumResult = { 
 /**
@@ -133,6 +176,18 @@ export type SpectrumResult = {
  * Access: `bands[t * EQ_BANDS + b]` = amplitude of band b at time bucket t.
  */
 bands: number[]; n_buckets: number; n_bands: number }
+export type StickerProps = { assetId: string }
+export type TextAlign = "left" | "center" | "right"
+export type TextProps = { text: string; role: TextRole; boundToTranscript?: boolean; color: string; font: string; size: number; align: TextAlign; bold: boolean; italic: boolean }
+export type TextRole = "title" | "subtitle" | "caption" | "freeform"
+export type Timing = { start: number; end: number }
+/**
+ * Canvas-fraction transform. All x/y/w/h are in [0, 1] relative to canvas size.
+ * For a child of a group, these are fractions of the group's local space.
+ */
+export type Transform = { x: number; y: number; w: number; h: number; rotation?: number; opacity?: number }
+export type VideoProps = { src: string; fit: Fit; loop: boolean; muted?: boolean }
+export type WaveformProps = { style: string; color: string }
 export type WriteAssParams = { highlightColor: string; videoWidth: number | null; videoHeight: number | null; fontSizePct: number | null; layoutTemplate: string | null; karaokeEnabled: boolean | null; fontName: string | null; subtitleYPct: number | null; subtitleColor: string | null; 
 /**
  * Layout zones for subtitle positioning — passed from export sheet

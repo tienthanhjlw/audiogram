@@ -30,9 +30,12 @@
 use std::sync::Arc;
 
 use cosmic_text::{
-    Attrs, Buffer, Color as CosmicColor, Family, FontSystem, Metrics, Shaping, Style as FontStyle,
-    SwashCache, Weight,
+    Attrs, Buffer, Color as CosmicColor, Family, Metrics, Shaping, Style as FontStyle, Weight,
 };
+// Re-exported so callers outside this crate (e.g. the app crate's per-thread
+// scene-render cache, P5-T5) can name these types without a direct
+// `cosmic-text` dependency.
+pub use cosmic_text::{FontSystem, SwashCache};
 
 use crate::pixel::blend;
 

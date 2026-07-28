@@ -93,7 +93,7 @@ function makeEquivalentNodes(): SceneNode[] {
       animIn: undefined,
       animOut: undefined,
       keyframes: [],
-      props: { style: 'bar', color: '#7C5CFF' },
+      props: { type: 'waveform', style: 'bar', color: '#7C5CFF' },
     },
     {
       id: 'title1',
@@ -106,6 +106,7 @@ function makeEquivalentNodes(): SceneNode[] {
       animOut: undefined,
       keyframes: [],
       props: {
+        type: 'text',
         text: 'Test Title',
         role: 'title',
         boundToTranscript: false,
@@ -186,8 +187,8 @@ describe('drawSceneFrame performance (P5-T3 budget: <=16ms for 20 nodes @1080p)'
       animOut: undefined,
       keyframes: [],
       props: i % 2 === 0
-        ? { style: 'bar', color: '#7C5CFF' }
-        : { text: `Node ${i}`, role: 'freeform', boundToTranscript: false, color: '#fff', font: 'Arial', size: 40, align: 'center', bold: false, italic: false },
+        ? { type: 'waveform', style: 'bar', color: '#7C5CFF' }
+        : { type: 'text', text: `Node ${i}`, role: 'freeform', boundToTranscript: false, color: '#fff', font: 'Arial', size: 40, align: 'center', bold: false, italic: false },
     }))
     const shared = makeSharedFromSpec(makeLegacySpec())
     const { ctx } = mockCtx()

@@ -1,12 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type {
   SceneNode,
+  SceneNodeProps,
   Transform,
-  TextProps,
-  WaveformProps,
-  VideoProps,
-  StickerProps,
-  ImageProps,
 } from '../../types'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -106,7 +102,7 @@ describe('SceneNode JSON round-trip', () => {
       type: 'waveform',
       transform: makeTransform(0.1, 0.7, 0.8, 0.2),
       z: 1,
-      props: { style: 'bar', color: '#7C5CFF' } satisfies WaveformProps,
+      props: { type: 'waveform', style: 'bar', color: '#7C5CFF' } satisfies SceneNodeProps,
     }
     expect(roundTrip(node)).toEqual(node)
   })
@@ -120,6 +116,7 @@ describe('SceneNode JSON round-trip', () => {
       timing: { start: 0, end: 30 },
       animOut: { preset: 'fade', duration: 0.4 },
       props: {
+        type: 'text',
         text: 'My Podcast',
         role: 'title',
         color: '#FFFFFF',
@@ -128,7 +125,7 @@ describe('SceneNode JSON round-trip', () => {
         align: 'center',
         bold: true,
         italic: false,
-      } satisfies TextProps,
+      } satisfies SceneNodeProps,
     }
     expect(roundTrip(node)).toEqual(node)
   })
@@ -140,6 +137,7 @@ describe('SceneNode JSON round-trip', () => {
       transform: makeTransform(0.05, 0.8, 0.9, 0.15),
       z: 3,
       props: {
+        type: 'text',
         text: '',
         role: 'caption',
         boundToTranscript: true,
@@ -149,7 +147,7 @@ describe('SceneNode JSON round-trip', () => {
         align: 'center',
         bold: false,
         italic: false,
-      } satisfies TextProps,
+      } satisfies SceneNodeProps,
     }
     expect(roundTrip(node)).toEqual(node)
   })
@@ -161,10 +159,11 @@ describe('SceneNode JSON round-trip', () => {
       transform: makeTransform(0.35, 0.1, 0.3, 0.3),
       z: 0,
       props: {
+        type: 'image',
         src: '/path/to/avatar.jpg',
         fit: 'cover',
         shape: 'circle',
-      } satisfies ImageProps,
+      } satisfies SceneNodeProps,
     }
     expect(roundTrip(node)).toEqual(node)
   })
@@ -179,7 +178,7 @@ describe('SceneNode JSON round-trip', () => {
       timing: { start: 3, end: 8 },
       animIn:  { preset: 'scale-in', duration: 0.5 },
       animOut: { preset: 'fade',     duration: 0.3 },
-      props: { assetId: 'mic-wave' } satisfies StickerProps,
+      props: { type: 'sticker', assetId: 'mic-wave' } satisfies SceneNodeProps,
     }
     expect(roundTrip(node)).toEqual(node)
   })
@@ -191,11 +190,12 @@ describe('SceneNode JSON round-trip', () => {
       transform: makeTransform(0, 0, 1, 1),
       z: -1,
       props: {
+        type: 'video',
         src: '/path/to/bg.mp4',
         fit: 'cover',
         loop: true,
         muted: true,
-      } satisfies VideoProps,
+      } satisfies SceneNodeProps,
     }
     expect(roundTrip(node)).toEqual(node)
   })
