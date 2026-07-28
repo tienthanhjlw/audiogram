@@ -4,7 +4,7 @@ import { mergeWithNext, remove, splitAt } from '@audiogram/segments'
 import { useAppStore } from '../../store'
 import { audioEngine } from '../../core/audio/AudioEngine'
 import { ipc } from '../../core/ipc/client'
-import { ContextMenu, Textarea } from '../../ui'
+import { ContextMenu, Textarea, toast } from '../../ui'
 import type { Segment } from '../../types'
 
 const MIN_SPLIT_DURATION = 0.6
@@ -85,7 +85,7 @@ export function SegmentList({ items }: { items: Segment[] }) {
   const commitEdit = (seg: Segment, text: string, selectNext: boolean) => {
     const updated = segments.map(s => s.id === seg.id ? { ...s, text } : s)
     set({ segments: updated })
-    ipc.writeSrt(updated).then(srtPath => set({ srtPath })).catch(() => {})
+    ipc.writeSrt(updated).then(srtPath => set({ srtPath })).catch(() => toast.error('Failed to save caption edit'))
     setEditingId(null)
     if (selectNext) {
       const idx = segments.findIndex(s => s.id === seg.id)
@@ -99,7 +99,7 @@ export function SegmentList({ items }: { items: Segment[] }) {
     if (index < 0) return
     const updated = fn(segments, index)
     set({ segments: updated })
-    ipc.writeSrt(updated).then(srtPath => set({ srtPath })).catch(() => {})
+    ipc.writeSrt(updated).then(srtPath => set({ srtPath })).catch(() => toast.error('Failed to save caption edit'))
   }
 
   const openMenu = (e: React.MouseEvent, seg: Segment) => {

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import { useAppStore } from '../../store'
 import { ipc, type ModelInfo } from '../../core/ipc/client'
-import { Button, Popover, ProgressBar } from '../../ui'
+import { Button, Popover, ProgressBar, toast } from '../../ui'
 
 // UI_DESIGN_SPEC.md §8.5 — model list + download from the Transcribe
 // cluster's model select trigger. `base`'s "BUNDLED" badge became
@@ -17,7 +17,7 @@ export function ModelPopover({ anchorRef, open, onClose }: {
   const [models, setModels] = useState<ModelInfo[]>([])
 
   const refreshModels = useCallback(() => {
-    ipc.listModels().then(setModels).catch(() => {})
+    ipc.listModels().then(setModels).catch(() => toast.error('Failed to load model list'))
   }, [])
 
   useEffect(() => { if (open) refreshModels() }, [open, refreshModels])
@@ -85,7 +85,7 @@ export function ModelPopover({ anchorRef, open, onClose }: {
                     variant="ghost"
                     size="sm"
                     disabled={!!downloadingName}
-                    onClick={e => { e.stopPropagation(); ipc.downloadModel(m.name).catch(() => {}) }}
+                    onClick={e => { e.stopPropagation(); ipc.downloadModel(m.name).catch(() => toast.error(`Failed to download ${m.name}`)) }}
                     className="h-7 flex-shrink-0"
                   >
                     Get ↓

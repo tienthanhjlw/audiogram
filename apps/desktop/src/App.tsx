@@ -12,6 +12,7 @@ import { CaptionsInspector } from './features/captions/CaptionsInspector'
 import { ExportSheet } from './features/export/ExportSheet'
 import { CloseGuardDialog } from './features/export/CloseGuardDialog'
 import { ShortcutsHelpModal } from './app/ShortcutsHelpModal'
+import { ToastViewport } from './ui'
 
 // UI_DESIGN_SPEC.md §2.2 — picking/dropping a file jumps straight into
 // Studio Design, no intermediate confirmation step. Both entry points
@@ -44,6 +45,7 @@ export default function App() {
       <ShortcutsHelpModal />
       <ExportSheet />
       <CloseGuardDialog />
+      <ToastViewport />
 
       {screen === 'start' ? (
         <StartScreen />
