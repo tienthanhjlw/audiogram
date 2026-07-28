@@ -47,6 +47,32 @@ export interface LayoutZones {
 // '../types'` call site keeps working unchanged.
 export { DEFAULT_ZONES } from '@audiogram/contract'
 
+// ─── Scene graph types (Phase 5 T2) ──────────────────────────────────────────
+// Re-exported here so feature code imports from '../types' (or '../../types')
+// rather than reaching into @audiogram/contract/scene directly.
+// LayoutZones / LAYOUT_TEMPLATES remain untouched — old render path lives until T18.
+export type {
+  AnimationClip,
+  AnimationId,
+  Easing,
+  ImageFit,
+  ImageProps,
+  ImageShape,
+  Keyframe,
+  KeyframeProperty,
+  KeyframeTrack,
+  SceneNode,
+  SceneNodeProps,
+  SceneNodeType,
+  StickerProps,
+  TextAlign,
+  TextProps,
+  TextRole,
+  Transform,
+  VideoProps,
+  WaveformProps,
+} from '@audiogram/contract/scene'
+
 export const CANVAS_SIZES: Record<CanvasSize, { w: number; h: number; label: string }> = {
   '16:9': { w: 1280, h: 720,  label: '16:9  YouTube' },
   '1:1':  { w: 1080, h: 1080, label: '1:1   Instagram' },

@@ -246,6 +246,7 @@ name = "audiogram-core"
 version = "0.0.0"
 dependencies = [
  "serde",
+ "serde_json",
  "specta",
  "thiserror 1.0.69",
 ]

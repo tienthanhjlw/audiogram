@@ -2,6 +2,7 @@ pub mod layout;
 pub mod model_spec;
 pub mod render_event;
 pub mod render_job;
+pub mod scene_node;
 pub mod segment;
 pub mod title_align;
 pub mod wave_style;
@@ -11,6 +12,11 @@ pub use layout::Layout;
 pub use model_spec::{ModelInfo, ModelSpec, MODELS};
 pub use render_event::{RenderEvent, RenderStage, SerializableError};
 pub use render_job::{RenderJob, RenderJobDto};
+pub use scene_node::{
+    AnimationClip, AnimationId, Easing, Fit, ImageProps, ImageShape, Keyframe, KeyframeProperty,
+    KeyframeTrack, SceneNode, SceneNodeProps, SceneNodeType, StickerProps, TextAlign, TextProps,
+    TextRole, Timing, Transform, VideoProps, WaveformProps,
+};
 pub use segment::Segment;
 pub use title_align::TitleAlign;
 pub use wave_style::WaveStyle;

@@ -1,0 +1,26 @@
+{
+  "_comment": "Scene graph schema — source of truth for SceneNode and related types. Read by contract/codegen.mjs to generate packages/contract/src/scene.ts and crates/audiogram-core/src/entities/scene_node.rs. Do NOT hand-edit generated files.",
+
+  "nodeTypes": ["waveform", "text", "image", "sticker", "video", "group"],
+
+  "animationPresets": ["fade", "slide-up", "slide-down", "scale-in"],
+
+  "easingTypes": ["linear", "ease-in", "ease-out", "ease-in-out", "hold"],
+
+  "keyframeProperties": ["x", "y", "w", "h", "rotation", "opacity"],
+
+  "textRoles": ["title", "subtitle", "caption", "freeform"],
+
+  "imageFitOptions": ["cover", "contain"],
+
+  "imageShapeOptions": ["rect", "circle", "rounded"],
+
+  "textAlignOptions": ["left", "center", "right"],
+
+  "defaults": {
+    "introDuration": 0,
+    "outroDuration": 0,
+    "animDuration": 0.4,
+    "opacity": 1.0
+  }
+}

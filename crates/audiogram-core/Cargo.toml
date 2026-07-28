@@ -7,3 +7,6 @@ edition = "2021"
 serde = { workspace = true }
 specta = { workspace = true }
 thiserror = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

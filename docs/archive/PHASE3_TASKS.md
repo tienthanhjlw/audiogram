@@ -95,24 +95,6 @@ Milestones: **M1** = T1–T5 (parity đóng, export đúng bằng preview) · **
 
 ---
 
-## T1 — Golden-frame test phủ đủ 9 wave style (½ ngày)
-
-**Tham chiếu:** `PHASE2_TASKS.md` §C (mục "golden-frame test chỉ phủ 3/9"), `OPTIMIZATION_PLAN.md` 1.1.
-**Mục tiêu:** bịt lỗ hổng lưới an toàn **trước** khi T2–T4 đụng vào renderer.
-
-**Các bước:**
-1. `crates/audiogram-render/tests/golden_frames.rs`: `STYLES` từ 3 → **9** (`bar/line/mirror/dot/neon/orb/pulse/eq/player`). Giữ nguyên 6 layout × 3 mốc thời gian.
-2. Tổ hợp thành 162 ảnh (từ 54). Kiểm tra thời gian chạy: nếu `cargo test -p audiogram-render` vượt **30s** (mốc trong PACKAGE_SPLIT_PLAN "cột mốc kiểm chứng"), giảm còn 6 layout × 9 style × **1 mốc** `t=25%` + giữ 3 mốc cho riêng `bar`/`eq` (2 đường code khác nhau nhất). Ghi rõ lựa chọn trong comment đầu file.
-3. Chạy lần đầu → sinh ảnh mới → **xem bằng mắt từng ảnh mới** (đặc biệt `line/neon/pulse/player` chưa từng được chụp) → xác nhận không có ảnh đen/trắng hoàn toàn hay vỡ hình → commit.
-4. Cập nhật comment đầu file `golden_frames.rs` + đoạn tương ứng trong `CLAUDE.md` (số style được phủ).
-
-**Nghiệm thu:**
-- [ ] `cargo test -p audiogram-render --test golden_frames` xanh, chạy < 30s
-- [ ] Số PNG trong `tests/golden/` khớp số tổ hợp đã chọn; **đã xem mắt toàn bộ ảnh mới sinh**
-- [ ] Chạy lần 2 vẫn xanh (deterministic)
-- [ ] Commit `p3-t1: extend golden-frame coverage to all 9 wave styles`
-
----
 
 ## T2 — `zones` đi qua `RenderJob`; hình học layout về `contract/` (1.5 ngày) 🔴
 
