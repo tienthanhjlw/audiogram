@@ -7,6 +7,7 @@ import {
 import { PreviewCanvas } from '../preview/PreviewCanvas'
 import { clampZoneFraction, snapToCenterPx } from '../../domain/zones'
 import { Button, Modal, SegmentedControl, Tooltip } from '../../ui'
+import { useFirstRunDesignHint } from './useFirstRunDesignHint'
 
 type ZoneKey = keyof LayoutZones
 
@@ -56,6 +57,7 @@ export function CanvasStage() {
   const [guides, setGuides]               = useState({ v: false, h: false })
   const [fullscreen, setFullscreen]       = useState(false)
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false)
+  const firstRunHint = useFirstRunDesignHint()
 
   const effectiveZones = zones ?? DEFAULT_ZONES[layoutTemplate]
   const ratio = CANVAS_SIZES[canvasSize].w / CANVAS_SIZES[canvasSize].h
@@ -114,7 +116,7 @@ export function CanvasStage() {
   return (
     <div className="flex h-full flex-col bg-bg-pit">
       <div
-        onMouseDown={() => { selectEl(null); setEditingTitle(false) }}
+        onMouseDown={() => { selectEl(null); setEditingTitle(false); firstRunHint.dismiss() }}
         className="flex flex-1 items-center justify-center overflow-hidden p-8"
       >
         <div
@@ -128,6 +130,20 @@ export function CanvasStage() {
           }}
         >
           <PreviewCanvas ratio={ratio} />
+
+          {firstRunHint.visible && (
+            <div className="pointer-events-none absolute left-1/2 top-3 z-30 -translate-x-1/2">
+              <div className="pointer-events-auto flex items-center gap-2 rounded-[var(--radius-m)] bg-black/85 px-3 py-1.5 text-[12px] text-text-1 shadow-[0_8px_24px_rgba(0,0,0,0.5)]">
+                <span>Click any element on the canvas to edit it</span>
+                <button
+                  onClick={firstRunHint.dismiss}
+                  className="font-semibold text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+                >
+                  Got it
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Zone overlays — onMouseDown (not onClick) so a zone's stopPropagation works */}
           <div ref={containerRef} className="absolute inset-0">
@@ -154,6 +170,7 @@ export function CanvasStage() {
                   onMouseDown={e => {
                     e.stopPropagation()
                     selectEl(el)
+                    firstRunHint.dismiss()
                     if (isTitleZone) {
                       titleDraggedRef.current = false
                       if (editingTitle) setEditingTitle(false)

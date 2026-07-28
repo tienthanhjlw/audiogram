@@ -9,6 +9,7 @@ import { migrate, type SessionFile } from './migrations'
 
 const SESSION_FILE = 'audiogram/session.json'
 const RECENTS_FILE = 'audiogram/recents.json'
+const ONBOARDING_FILE = 'audiogram/onboarding.json'
 const MAX_RECENTS = 8
 
 export interface RecentEntry {
@@ -106,4 +107,18 @@ export async function audioFileExists(audioPath: string): Promise<boolean> {
   } catch {
     return true
   }
+}
+
+/** First-run Design mode hint (UI_DESIGN_SPEC.md §194) — kept in its own
+ * tiny file rather than session.json, since that file's per-project fields
+ * (`design`/`captions`) get replaced whenever the user opens a *different*
+ * audio file; this flag must survive that (it's "has the user ever seen
+ * this hint", not "...for this project"). */
+export async function hasSeenDesignHint(): Promise<boolean> {
+  const raw = await readJson<{ seen?: boolean }>(ONBOARDING_FILE)
+  return raw?.seen === true
+}
+
+export async function markDesignHintSeen(): Promise<void> {
+  await writeJson(ONBOARDING_FILE, { seen: true })
 }
