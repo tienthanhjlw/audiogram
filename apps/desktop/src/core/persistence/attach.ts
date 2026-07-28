@@ -17,7 +17,7 @@ const DEBOUNCE_MS = 800
 const PERSISTED_FIELDS: (keyof State)[] = [
   'audioPath', 'audioName', 'title',
   'layoutTemplate', 'waveStyle', 'waveColor', 'bgColor', 'coverImagePath', 'zones',
-  'titleColor', 'titleAlign', 'titleBold', 'titleItalic', 'fontSize', 'fontName',
+  'titleColor', 'titleAlign', 'titleBold', 'titleItalic', 'fontSize', 'fontName', 'nodes',
   'segments', 'srtPath', 'showSubtitles', 'whisperModel', 'karaokeEnabled',
   'karaokeColor', 'subtitleColor', 'subtitleYPct',
 ]
@@ -40,6 +40,7 @@ function toSessionFile(state: State): SessionFile {
       titleItalic: state.titleItalic,
       fontSize: state.fontSize,
       fontName: state.fontName,
+      nodes: state.nodes,
     },
     captions: {
       segments: state.segments,

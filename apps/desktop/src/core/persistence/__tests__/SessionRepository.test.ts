@@ -34,6 +34,7 @@ function makeSession(): SessionFile {
       layoutTemplate: 'minimal', waveStyle: 'bar', waveColor: '#fff', bgColor: '#000',
       coverImagePath: '', zones: null, titleColor: '#fff', titleAlign: 'center',
       titleBold: false, titleItalic: false, fontSize: 100, fontName: 'Arial',
+      nodes: [],
     },
     captions: {
       segments: [], srtPath: '', showSubtitles: true, whisperModel: 'base',

@@ -31,6 +31,7 @@ export function sessionToPatch(session: SessionFile): Partial<State> {
     titleItalic: session.design.titleItalic,
     fontSize: session.design.fontSize,
     fontName: session.design.fontName,
+    nodes: session.design.nodes ?? [],
     segments: session.captions.segments,
     srtPath: session.captions.srtPath,
     showSubtitles: session.captions.showSubtitles,

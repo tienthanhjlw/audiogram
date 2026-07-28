@@ -17,8 +17,39 @@ const VALID: SessionFileV1 = {
 }
 
 describe('migrate', () => {
-  it('passes through a valid v1 session unchanged', () => {
-    expect(migrate(VALID)).toEqual(VALID)
+  it('passes through a valid v1 session, backfilling nodes (P5-T6)', () => {
+    const result = migrate(VALID)
+    expect(result).not.toBeNull()
+    // Everything except `design.nodes` (absent on VALID, backfilled below) is unchanged.
+    expect({ ...result, design: { ...result!.design, nodes: undefined } })
+      .toEqual({ ...VALID, design: { ...VALID.design, nodes: undefined } })
+    // waveStyle:'bar' + title:'A' (from project.title) → at least a waveform + title node.
+    expect(result!.design.nodes!.length).toBeGreaterThanOrEqual(2)
+    expect(result!.design.nodes!.some(n => n.type === 'waveform')).toBe(true)
+    expect(result!.design.nodes!.some(n => n.type === 'text')).toBe(true)
+  })
+
+  it('does not re-derive nodes when the session already has them (idempotent)', () => {
+    const first = migrate(VALID)!
+    const second = migrate(first)!
+    expect(second.design.nodes).toEqual(first.design.nodes)
+    // Re-migrating a second time must not double up or regenerate ids.
+    const third = migrate(second)!
+    expect(third.design.nodes).toEqual(first.design.nodes)
+  })
+
+  it('backfills an empty nodes array when the legacy fields have nothing to convert', () => {
+    const bare: SessionFileV1 = {
+      ...VALID,
+      project: { ...VALID.project, title: '' },
+      design: { ...VALID.design, waveStyle: 'bar' },
+      captions: { ...VALID.captions, showSubtitles: false },
+    }
+    const result = migrate(bare)
+    // Waveform node always exists (it's the one thing every layout draws);
+    // no title text, no cover image, no captions → nothing else.
+    expect(result!.design.nodes!.length).toBe(1)
+    expect(result!.design.nodes![0].type).toBe('waveform')
   })
 
   it('rejects null/undefined/non-objects', () => {
