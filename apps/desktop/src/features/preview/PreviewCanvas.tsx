@@ -4,6 +4,8 @@ import { useAppStore } from '../../store'
 import { assetUrl } from '../../core/assetUrl'
 import { audioEngine } from '../../core/audio/AudioEngine'
 import { drawFrame, type FrameSpec } from '../../domain/preview/renderer'
+import { drawSceneFrame } from '../../domain/preview/nodeRenderer'
+import { useNodeRenderer } from '../../domain/preview/useNodeRendererFlag'
 import { DEFAULT_ZONES, type Segment } from '../../types'
 import { useFftSpectrum } from './useFftSpectrum'
 
@@ -154,7 +156,18 @@ export function PreviewCanvas({ width, ratio, className, showCaptions = false }:
         titleItalic,
         subtitlePreview,
       }
-      drawFrame(ctx, W, H, spec)
+      if (useNodeRenderer) {
+        // P5-T3: node renderer has no data source yet (store.nodes lands in T6,
+        // Layers panel to author nodes in T7) — draws an empty scene so the flag
+        // is wired end-to-end without breaking preview when flipped on early.
+        drawSceneFrame(ctx, W, H, [], spec.t, {
+          peaks, waveTime, waveDur, waveLoop: !hasAudio,
+          eqState: eqStateRef.current, fftPeaks: fftPeaksRef.current, fftBuckets: fftBucketsRef.current,
+          images: new Map(),
+        })
+      } else {
+        drawFrame(ctx, W, H, spec)
+      }
     })
     return unsub
   }, [
