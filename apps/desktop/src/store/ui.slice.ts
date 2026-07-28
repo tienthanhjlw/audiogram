@@ -1,5 +1,6 @@
 import type { StateCreator } from 'zustand'
 import type { AppStore } from './index'
+import type { SessionFile } from '../core/persistence/migrations'
 
 export type Mode = 'design' | 'captions'
 
@@ -56,6 +57,12 @@ export interface UiSlice {
   /** New in T13 — set by the Help > Keyboard Shortcuts native menu item
    * (app/actions.ts's openShortcutsHelp), read by ShortcutsHelpModal.tsx. */
   shortcutsHelpOpen: boolean
+  /** New in P4-T8 — set (before the first render, main.tsx) when
+   * session.json exists but its audioPath no longer resolves on disk.
+   * PendingSessionLocate.tsx watches this to offer the same Locate-File
+   * dialog RecentGrid uses for a missing Recent, instead of silently
+   * dropping the saved session and landing on an empty START screen. */
+  pendingMissingSession: SessionFile | null
   /** Generic patch escape hatch — every component that needs to write more
    * than one field at once (or a field no dedicated action covers) goes
    * through this rather than each owning its own setter. */
@@ -75,5 +82,6 @@ export const createUiSlice: StateCreator<AppStore, [], [], UiSlice> = (set) => (
   exportSheetMinimized: false,
   setExportSheetMinimized: (minimized) => set({ exportSheetMinimized: minimized }),
   shortcutsHelpOpen: false,
+  pendingMissingSession: null,
   set: (patch) => set(patch),
 })

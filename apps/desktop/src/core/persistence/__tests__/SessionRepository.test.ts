@@ -17,8 +17,10 @@ vi.mock('@tauri-apps/plugin-fs', () => ({
   writeTextFile: vi.fn(async (path: string, data: string) => { fakeFs.set(path, data) }),
 }))
 
-const { loadSession, saveSession, listRecents, pushRecent, removeRecent } =
-  await import('../SessionRepository')
+const {
+  loadSession, saveSession, clearSession, listRecents, pushRecent, removeRecent,
+  hasSeenDesignHint, markDesignHintSeen,
+} = await import('../SessionRepository')
 const { CURRENT_SESSION_VERSION } = await import('../migrations')
 import type { SessionFile } from '../migrations'
 import type { RecentEntry } from '../SessionRepository'
@@ -64,6 +66,20 @@ describe('session.json', () => {
     const session = makeSession()
     await saveSession(session)
     expect(await loadSession()).toEqual(session)
+  })
+
+  it('clearSession makes loadSession behave as if nothing was ever saved', async () => {
+    await saveSession(makeSession())
+    await clearSession()
+    expect(await loadSession()).toBeNull()
+  })
+})
+
+describe('onboarding.json', () => {
+  it('hasSeenDesignHint is false until markDesignHintSeen is called', async () => {
+    expect(await hasSeenDesignHint()).toBe(false)
+    await markDesignHintSeen()
+    expect(await hasSeenDesignHint()).toBe(true)
   })
 })
 

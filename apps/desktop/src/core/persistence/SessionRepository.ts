@@ -74,6 +74,13 @@ export async function saveSession(session: SessionFile): Promise<void> {
   await writeJson(SESSION_FILE, session)
 }
 
+/** "Forget" the last session (P4-T8's Locate-File-dialog "Remove" choice) —
+ * writes `null` rather than deleting the file, since loadSession()/migrate()
+ * already treat any non-object JSON value as "no session". */
+export async function clearSession(): Promise<void> {
+  await writeJson(SESSION_FILE, null)
+}
+
 export async function listRecents(): Promise<RecentEntry[]> {
   const raw = await readJson<RecentEntry[]>(RECENTS_FILE)
   return Array.isArray(raw) ? raw : []

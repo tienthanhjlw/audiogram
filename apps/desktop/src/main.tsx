@@ -11,6 +11,7 @@ import { attachShortcuts } from './app/shortcuts'
 import { buildAppMenu } from './app/menu'
 import { registerBuiltins } from './extensions'
 import { attachSessionPersistence } from './core/persistence/attach'
+import { restoreLastSession } from './core/persistence/restore'
 import { renderProjectThumb } from './features/preview/thumbnailer'
 
 // Temporary visual QA route for the ui/ primitives (T4/T5) — not part of
@@ -32,9 +33,9 @@ attachIpcEvents(useAppStore)
 // playback.slice (TECH_ARCHITECTURE §2.6).
 attachAudioEngine(useAppStore)
 
-// Debounced session.json + recents.json writer (T4) — auto-restore on
-// launch is Phase 4 (UI_REBUILD_PLAN.md §4.4); this just keeps both files
-// current so START's Recents grid (P2-T5) has something to read.
+// Debounced session.json + recents.json writer (T4) — keeps both files
+// current so START's Recents grid (P2-T5) has something to read, and so
+// restoreLastSession (P4-T8, below) has something to restore next launch.
 attachSessionPersistence(useAppStore, renderProjectThumb)
 
 // One global keydown listener (T13) — same one-subscription pattern as
@@ -46,6 +47,10 @@ attachShortcuts()
 void buildAppMenu().catch(() => {})
 
 async function main() {
+  // Awaited before the first render (P4-T8) — restores the last session
+  // straight into Studio (or stashes it as `pendingMissingSession` if its
+  // audio has moved/gone) so there's no START-screen flash first.
+  if (!isGallery) await restoreLastSession(useAppStore)
   const Root = isGallery ? (await import('./ui/__gallery__')).default : App
   ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
     <React.StrictMode>
