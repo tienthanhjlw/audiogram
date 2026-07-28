@@ -78,6 +78,18 @@ function openShortcutsHelp(): void {
   useAppStore.getState().set({ shortcutsHelpOpen: true })
 }
 
+// P4-T9 — scoped to Design mode edits + caption text edits (store/index.ts's
+// temporal() partialize), not playback/render/UI-only state. Guarded by
+// shortcuts.ts's 'notTyping' so ⌘Z while focused in a text field falls
+// through to the browser's own field-level undo instead.
+function undo(): void {
+  useAppStore.temporal.getState().undo()
+}
+
+function redo(): void {
+  useAppStore.temporal.getState().redo()
+}
+
 export const actions = {
   openAudio,
   importAudioPath,
@@ -92,4 +104,6 @@ export const actions = {
   seekForwardSmall: () => seekBy(1),
   seekToStart,
   openShortcutsHelp,
+  undo,
+  redo,
 }

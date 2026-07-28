@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { isMac } from './platform'
 
 const mockActions = {
   openAudio: vi.fn(),
@@ -14,6 +15,8 @@ const mockActions = {
   seekForwardSmall: vi.fn(),
   seekToStart: vi.fn(),
   openShortcutsHelp: vi.fn(),
+  undo: vi.fn(),
+  redo: vi.fn(),
 }
 
 vi.mock('./actions', () => ({ actions: mockActions }))
@@ -68,6 +71,23 @@ describe('attachShortcuts', () => {
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true }))
     expect(mockActions.seekBackward).not.toHaveBeenCalled()
     input.remove()
+  })
+
+  const modKey = isMac ? 'metaKey' : 'ctrlKey'
+
+  it('⌘Z undoes, ⇧⌘Z redoes (P4-T9)', () => {
+    dispatch('z', { [modKey]: true })
+    dispatch('z', { [modKey]: true, shiftKey: true })
+    expect(mockActions.undo).toHaveBeenCalledTimes(1)
+    expect(mockActions.redo).toHaveBeenCalledTimes(1)
+  })
+
+  it('⌘Z while typing in a textarea does not touch store history (browser undo instead)', () => {
+    const textarea = document.createElement('textarea')
+    document.body.appendChild(textarea)
+    textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', [modKey]: true, bubbles: true, cancelable: true }))
+    expect(mockActions.undo).not.toHaveBeenCalled()
+    textarea.remove()
   })
 })
 

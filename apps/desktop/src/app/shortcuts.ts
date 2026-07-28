@@ -21,13 +21,19 @@ export interface ShortcutEntry {
 // The one declarative shortcut table for the whole app — menu.ts reads
 // `accelerator` back out for the native menu, and ShortcutsHelpModal.tsx
 // renders this same list, so there's exactly one place that knows what the
-// app's shortcuts are (PHASE1_TASKS.md T13). Undo (⌘Z) is intentionally not
-// here yet — it's Phase 4, once zundo is wired up.
+// app's shortcuts are (PHASE1_TASKS.md T13). Undo/redo (P4-T9) intentionally
+// have no `accelerator` — Tauri's native Edit menu keeps its own predefined
+// `{ item: 'Undo' }`/`{ item: 'Redo' }` (menu.ts), which drives the OS's
+// native text-field undo; binding the same accelerator here too would race
+// it. These two only ever fire through this file's keydown listener, guarded
+// by `notTyping` so a focused input/textarea's own undo isn't hijacked.
 export const SHORTCUTS: ShortcutEntry[] = [
   { id: 'openAudio', label: 'Open Audio…', key: 'o', mod: true, accelerator: 'CmdOrCtrl+O', run: actions.openAudio },
   { id: 'export', label: 'Export', key: 'e', mod: true, accelerator: 'CmdOrCtrl+E', run: actions.exportProject },
   { id: 'modeDesign', label: 'Design mode', key: '1', mod: true, accelerator: 'CmdOrCtrl+1', run: actions.setModeDesign },
   { id: 'modeCaptions', label: 'Captions mode', key: '2', mod: true, accelerator: 'CmdOrCtrl+2', run: actions.setModeCaptions },
+  { id: 'undo', label: 'Undo', key: 'z', mod: true, when: 'notTyping', run: actions.undo },
+  { id: 'redo', label: 'Redo', key: 'z', mod: true, shift: true, when: 'notTyping', run: actions.redo },
   { id: 'togglePlayback', label: 'Play / Pause', key: ' ', when: 'notTyping', run: actions.togglePlayback },
   { id: 'seekBackward', label: 'Seek back 5s', key: 'ArrowLeft', when: 'notTyping', run: actions.seekBackward },
   { id: 'seekForward', label: 'Seek forward 5s', key: 'ArrowRight', when: 'notTyping', run: actions.seekForward },
