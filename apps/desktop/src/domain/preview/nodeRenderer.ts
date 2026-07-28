@@ -4,7 +4,7 @@
 // `useNodeRenderer` flag in PreviewCanvas/thumbnailer; both paths coexist for
 // side-by-side comparison through T3–T10.
 import { SceneNode } from '../../types'
-import { computeEffectiveTransform, isVisibleAt } from '../scene/timing'
+import { indexById, isVisibleWithAncestors, worldTransform } from '../scene/group'
 import { drawImageNode, ImageMap } from './nodeRenderers/image'
 import { drawTextNode } from './nodeRenderers/text'
 import { drawWaveformNode, WaveformShared } from './nodeRenderers/waveform'
@@ -31,23 +31,25 @@ export interface SceneTimingContext {
 
 /**
  * Draws every node visible at time `t`, in z-order. A node with `timing` is
- * skipped entirely outside its `[start, end]` window (P5-T8); animIn/animOut
- * presets (domain/scene/animPresets.ts) adjust the drawn transform near the
- * window's edges.
- *
- * T10 scope still pending: no group composition yet (nodes render with
- * their own `transform` as-is, root-space).
+ * skipped entirely outside its `[start, end]` window (P5-T8), and so is any
+ * node whose ancestor group is hidden by ITS OWN timing (P5-T10 — a group's
+ * timing/animIn/animOut applies to the whole subtree, not just itself).
+ * animIn/animOut presets (domain/scene/animPresets.ts) adjust the drawn
+ * transform near a window's edges; for a node inside a group, its world
+ * transform composes with every ancestor's own (possibly animated)
+ * transform (domain/scene/group.ts).
  */
 export function drawSceneFrame(
   ctx: CanvasRenderingContext2D, W: number, H: number, nodes: SceneNode[], t: number, shared: SceneShared,
   timingCtx: SceneTimingContext = { dur: 0 },
 ): void {
+  const nodesById = indexById(nodes)
   const sorted = [...nodes].sort((a, b) => a.z - b.z)
   for (const node of sorted) {
-    if (!isVisibleAt(node, t, timingCtx.dur)) continue
+    if (!isVisibleWithAncestors(node, nodesById, t, timingCtx.dur)) continue
     const renderer = NODE_RENDERERS[node.type]
     if (!renderer) continue
-    const transform = computeEffectiveTransform(node, t, timingCtx.dur)
+    const transform = worldTransform(node, nodesById, t, timingCtx.dur)
     const effectiveNode = transform === node.transform ? node : { ...node, transform }
     renderer(ctx, W, H, effectiveNode, shared)
   }

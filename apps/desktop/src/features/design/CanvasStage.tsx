@@ -9,6 +9,7 @@ import { clampZoneFraction, snapToCenterPx } from '../../domain/zones'
 import { Button, Modal, SegmentedControl, Tooltip } from '../../ui'
 import { useFirstRunDesignHint } from './useFirstRunDesignHint'
 import { TimingTimeline } from './TimingTimeline'
+import { indexById, staticWorldTransform } from '../../domain/scene/group'
 import { EL_META } from './zoneMeta'
 
 type ZoneKey = keyof LayoutZones
@@ -233,26 +234,44 @@ export function CanvasStage() {
               drag/resize-on-canvas isn't in scope yet, edit via NodeInspector. */}
           {layersBetaEnabled && (
             <div className="absolute inset-0">
-              {[...nodes].sort((a, b) => a.z - b.z).map(node => {
-                const sel = selectedNodeIds.includes(node.id)
-                const { x, y, w, h } = node.transform
-                return (
-                  <div
-                    key={node.id}
-                    onMouseDown={e => { e.stopPropagation(); setSelectedNodeIds([node.id]) }}
-                    style={{
-                      position: 'absolute',
-                      left: `${x * 100}%`, top: `${y * 100}%`,
-                      width: `${w * 100}%`, height: `${h * 100}%`,
-                      border: sel ? '2px solid #EC4FC4' : '1px dashed rgba(236,79,196,0.4)',
-                      borderRadius: 4,
-                      boxSizing: 'border-box',
-                      cursor: 'pointer',
-                      zIndex: sel ? 15 : 8,
-                    }}
-                  />
-                )
-              })}
+              {(() => {
+                const nodesById = indexById(nodes)
+                return [...nodes].sort((a, b) => a.z - b.z).map(node => {
+                  const sel = selectedNodeIds.includes(node.id)
+                  // World-space rect so a grouped child's overlay box sits at its
+                  // actual on-canvas position, not its group-local coordinates
+                  // (P5-T10) — clicking it selects the child directly, no
+                  // separate "double-click to enter the group" step needed.
+                  const { x, y, w, h } = staticWorldTransform(node, nodesById)
+                  return (
+                    <div
+                      key={node.id}
+                      onMouseDown={e => {
+                        e.stopPropagation()
+                        if (e.shiftKey) {
+                          setSelectedNodeIds(
+                            selectedNodeIds.includes(node.id)
+                              ? selectedNodeIds.filter(id => id !== node.id)
+                              : [...selectedNodeIds, node.id],
+                          )
+                        } else {
+                          setSelectedNodeIds([node.id])
+                        }
+                      }}
+                      style={{
+                        position: 'absolute',
+                        left: `${x * 100}%`, top: `${y * 100}%`,
+                        width: `${w * 100}%`, height: `${h * 100}%`,
+                        border: sel ? '2px solid #EC4FC4' : '1px dashed rgba(236,79,196,0.4)',
+                        borderRadius: 4,
+                        boxSizing: 'border-box',
+                        cursor: 'pointer',
+                        zIndex: sel ? 15 : 8,
+                      }}
+                    />
+                  )
+                })
+              })()}
             </div>
           )}
 

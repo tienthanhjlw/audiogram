@@ -40,6 +40,8 @@ export const SHORTCUTS: ShortcutEntry[] = [
   { id: 'seekBackwardSmall', label: 'Seek back 1s', key: 'ArrowLeft', shift: true, when: 'notTyping', run: actions.seekBackwardSmall },
   { id: 'seekForwardSmall', label: 'Seek forward 1s', key: 'ArrowRight', shift: true, when: 'notTyping', run: actions.seekForwardSmall },
   { id: 'seekToStart', label: 'Seek to start', key: 'Home', when: 'notTyping', run: actions.seekToStart },
+  { id: 'groupNodes', label: 'Group', key: 'g', mod: true, accelerator: 'CmdOrCtrl+G', when: 'notTyping', run: actions.groupSelected },
+  { id: 'ungroupNodes', label: 'Ungroup', key: 'g', mod: true, shift: true, accelerator: 'CmdOrCtrl+Shift+G', when: 'notTyping', run: actions.ungroupSelected },
 ]
 
 /** Human-readable combo for the Help modal, computed per-platform from the

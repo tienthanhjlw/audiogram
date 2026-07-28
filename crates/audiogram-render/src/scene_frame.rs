@@ -53,24 +53,25 @@ fn find_image<'a>(images: &'a [SceneImage<'a>], src: &str) -> Option<&'a SceneIm
 
 /// Draws every node in `nodes`, sorted by `z`, into `buf` (`w × h × 4` RGBA).
 ///
-/// Nodes with a `timing` window are skipped outside `[start, end]` (P5-T8);
-/// animIn/animOut presets adjust the drawn transform near the window's
-/// edges (crate::timing::effective_transform).
-///
-/// T10 scope still pending: no group composition yet (each node renders
-/// with its own `transform` as-is, root-space).
+/// Nodes with a `timing` window are skipped outside `[start, end]` (P5-T8),
+/// and so is any node whose ancestor group is hidden by ITS OWN timing
+/// (P5-T10 — a group's timing/animIn/animOut applies to the whole subtree).
+/// A grouped node's drawn transform is its world transform: its own
+/// (possibly animated) transform composed with every ancestor group's own
+/// transform (crate::group::world_transform).
 #[allow(clippy::too_many_arguments)]
 pub fn render_scene_frame_into(buf: &mut [u8], w: usize, h: usize, nodes: &[SceneNode], shared: &mut SceneShared) {
     debug_assert_eq!(buf.len(), w * h * 4);
+    let nodes_by_id = crate::group::index_by_id(nodes);
     let mut sorted: Vec<&SceneNode> = nodes.iter().collect();
     sorted.sort_by_key(|n| n.z);
 
     for node in sorted {
-        if !crate::timing::is_visible_at(node, shared.t_sec, shared.dur) {
+        if !crate::group::is_visible_with_ancestors(node, &nodes_by_id, shared.t_sec, shared.dur) {
             continue;
         }
         let Some(props) = &node.props else { continue };
-        let t = crate::timing::effective_transform(node, shared.t_sec, shared.dur);
+        let t = crate::group::world_transform(node, &nodes_by_id, shared.t_sec, shared.dur);
         match (node.r#type, props) {
             (SceneNodeType::Waveform, SceneNodeProps::Waveform(p)) => {
                 if shared.peaks.is_empty() {
@@ -371,5 +372,45 @@ mod tests {
         assert!(before.iter().all(|&b| b == 0), "node outside its timing window must not draw");
         assert!(after.iter().all(|&b| b == 0), "node past its timing window must not draw");
         assert!(inside.iter().any(|&b| b != 0), "node inside its timing window must draw");
+    }
+
+    /// P5-T10 — same production-path check as the timing test above, but for
+    /// a grouped node: a waveform child of a group whose OWN `timing` hides
+    /// it, drawn via the exact render_scene_frame_into call encode_blocking
+    /// uses. The child has no `timing` of its own — visibility is inherited
+    /// entirely from the ancestor group.
+    #[test]
+    fn grouped_node_inherits_group_timing_in_production_render_path() {
+        let (w, h) = (320usize, 180usize);
+        let peaks: Vec<f32> = (0..300).map(|i| 0.4 + 0.4 * (i as f32 * 0.1).sin().abs()).collect();
+        let group = SceneNode {
+            id: "g".into(), r#type: SceneNodeType::Group, parent_id: None,
+            transform: make_transform(0.1, 0.1, 0.8, 0.8), z: 0,
+            timing: Some(audiogram_core::entities::scene_node::Timing { start: 2.0, end: 5.0 }),
+            anim_in: None, anim_out: None, keyframes: vec![], props: None,
+        };
+        let child = SceneNode {
+            id: "w1".into(), r#type: SceneNodeType::Waveform, parent_id: Some("g".into()),
+            transform: make_transform(0.0, 0.0, 1.0, 1.0), z: 1,
+            timing: None, anim_in: None, anim_out: None, keyframes: vec![],
+            props: Some(SceneNodeProps::Waveform(WaveformProps { style: "bar".into(), color: "#FFFFFF".into() })),
+        };
+        let nodes = [group, child];
+        let mut font_system = text::new_font_system();
+        let mut swash_cache = text::new_swash_cache();
+
+        let mut render_at = |t_sec: f64| -> Vec<u8> {
+            let mut buf = vec![0u8; w * h * 4];
+            let mut shared = SceneShared {
+                peaks: &peaks, t_sec, dur: 10.0, eq_snapshot: &[], fft_peaks: &[], fft_n_buckets: 0,
+                images: &[], font_system: &mut font_system, swash_cache: &mut swash_cache,
+            };
+            render_scene_frame_into(&mut buf, w, h, &nodes, &mut shared);
+            buf
+        };
+
+        assert!(render_at(1.0).iter().all(|&b| b == 0), "child must not draw before the group's timing window");
+        assert!(render_at(3.5).iter().any(|&b| b != 0), "child must draw inside the group's timing window");
+        assert!(render_at(6.0).iter().all(|&b| b == 0), "child must not draw after the group's timing window");
     }
 }

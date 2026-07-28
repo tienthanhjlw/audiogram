@@ -6,6 +6,7 @@
 //! of an `AppHandle` directly.
 pub mod anim_presets;
 pub mod frame;
+pub mod group;
 pub mod pixel;
 pub mod progress;
 pub mod scene_frame;

@@ -69,9 +69,27 @@ export function LayersPanel() {
   const removeNode = useAppStore(s => s.removeNode)
   const updateNodeTransform = useAppStore(s => s.updateNodeTransform)
   const moveNodeZ = useAppStore(s => s.moveNodeZ)
+  const groupNodes = useAppStore(s => s.groupNodes)
+  const ungroupNode = useAppStore(s => s.ungroupNode)
   const [collapsed, setCollapsed] = useState(true)
 
   const sorted = [...nodes].sort((a, b) => b.z - a.z) // topmost (highest z) first, matches most layer UIs
+
+  const selectRow = (nodeId: string, e: { shiftKey: boolean }) => {
+    if (e.shiftKey) {
+      setSelectedNodeIds(
+        selectedNodeIds.includes(nodeId)
+          ? selectedNodeIds.filter(id => id !== nodeId)
+          : [...selectedNodeIds, nodeId],
+      )
+    } else {
+      setSelectedNodeIds([nodeId])
+    }
+  }
+
+  const selectedGroupId = selectedNodeIds.length === 1
+    ? nodes.find(n => n.id === selectedNodeIds[0] && n.type === 'group')?.id
+    : undefined
 
   return (
     <section className="border-t border-border pt-3">
@@ -86,10 +104,16 @@ export function LayersPanel() {
 
       {!collapsed && (
         <div className="flex flex-col gap-2">
-          <div className="flex gap-1.5">
+          <div className="flex flex-wrap gap-1.5">
             <Button size="sm" variant="ghost" onClick={() => addNode(newTextNode())}>+ Text</Button>
             <Button size="sm" variant="ghost" onClick={() => addNode(newImageNode())}>+ Image</Button>
             <Button size="sm" variant="ghost" onClick={() => addNode(newStickerNode('mic-wave'))}>+ Sticker</Button>
+            {selectedNodeIds.length >= 2 && (
+              <Button size="sm" variant="ghost" onClick={() => groupNodes(selectedNodeIds)}>Group ⌘G</Button>
+            )}
+            {selectedGroupId && (
+              <Button size="sm" variant="ghost" onClick={() => ungroupNode(selectedGroupId)}>Ungroup ⇧⌘G</Button>
+            )}
           </div>
 
           {sorted.length === 0 ? (
@@ -111,7 +135,7 @@ export function LayersPanel() {
                   >
                     <button
                       type="button"
-                      onClick={() => setSelectedNodeIds([node.id])}
+                      onClick={e => selectRow(node.id, e)}
                       className="flex flex-1 items-center gap-1.5 overflow-hidden text-left"
                     >
                       <span className="w-4 shrink-0 text-center text-text-3">{TYPE_ICON[node.type]}</span>

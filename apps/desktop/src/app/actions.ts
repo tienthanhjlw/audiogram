@@ -90,6 +90,20 @@ function redo(): void {
   useAppStore.temporal.getState().redo()
 }
 
+// P5-T10 — ⌘G/⇧⌘G. groupNodes/ungroupNode themselves are no-ops on invalid
+// input (see design.slice.ts's own guards), so these wrappers just supply
+// "what's currently selected" from the store.
+function groupSelected(): void {
+  const s = useAppStore.getState()
+  s.groupNodes(s.selectedNodeIds)
+}
+
+function ungroupSelected(): void {
+  const s = useAppStore.getState()
+  const groupId = s.selectedNodeIds.find(id => s.nodes.find(n => n.id === id)?.type === 'group')
+  if (groupId) s.ungroupNode(groupId)
+}
+
 export const actions = {
   openAudio,
   importAudioPath,
@@ -106,4 +120,6 @@ export const actions = {
   openShortcutsHelp,
   undo,
   redo,
+  groupSelected,
+  ungroupSelected,
 }
