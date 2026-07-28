@@ -226,10 +226,7 @@ function SegmentRow({
       <div className="flex items-center gap-1.5 font-mono text-[10px] text-text-3">
         <button type="button" onClick={onSeek} title="Play from here" className="cursor-pointer">▶</button>
         <span>{fmtTime(seg.start)} → {fmtTime(seg.end)}</span>
-        <span
-          className="rounded-[4px] px-1 py-[1px]"
-          style={dur < 1.2 ? { background: 'rgba(245,158,11,0.25)', color: '#F59E0B' } : undefined}
-        >
+        <span className={`rounded-[4px] px-1 py-[1px] ${dur < 1.2 ? 'bg-warning/25 text-warning' : ''}`}>
           {dur.toFixed(1)}s
         </span>
       </div>

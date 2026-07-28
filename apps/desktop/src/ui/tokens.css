@@ -15,6 +15,7 @@
   --color-accent-soft: rgb(124 92 255 / 0.14);
   --color-success:     #34D399;
   --color-danger:      #F87171;
+  --color-warning:     #F59E0B;
 
   --color-text-1: #F4F4F6;
   --color-text-2: #A0A0B0;
@@ -35,6 +36,17 @@ body {
 
 .tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/* One focus-visible ring for every interactive element, so hand-rolled
+ * inline `<button>`s (there are many outside ui/Button.tsx) don't drift
+ * from each other or fall back to the browser's default (P4-T7 audit). */
+button:focus-visible,
+a:focus-visible,
+[role="menuitem"]:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
 }
 
 /* Overlay scrollbar — thin, only visible on hover (UI_DESIGN_SPEC.md §1.2). */

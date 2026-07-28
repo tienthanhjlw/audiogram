@@ -54,7 +54,7 @@ export function CaptionsPanel() {
           className="w-full"
         >
           {isTranscribing
-            ? `Transcribing… ${elapsed}s`
+            ? <>Transcribing… <span className="tabular">{elapsed}</span>s</>
             : hasSegments ? '↺ Re-transcribe' : '🎙 Transcribe'}
         </Button>
         {isTranscribing && <ProgressBar />}

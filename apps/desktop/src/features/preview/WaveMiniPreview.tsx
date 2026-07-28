@@ -13,6 +13,8 @@ const { peaks: FAKE_PEAKS, duration: FAKE_DUR } = fallbackEnvelope()
 interface WaveMiniPreviewProps {
   /** Extension id, e.g. 'com.audiogram.wave.bar' — same id the wave style gallery (T6) uses. */
   extensionId: string
+  /** Default mirrors --color-accent (ui/tokens.css); a literal because this
+   * is a canvas fillStyle, which can't read CSS custom properties (P4-T7). */
   color?: string
   className?: string
 }

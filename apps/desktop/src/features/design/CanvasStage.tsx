@@ -8,18 +8,12 @@ import { PreviewCanvas } from '../preview/PreviewCanvas'
 import { clampZoneFraction, snapToCenterPx } from '../../domain/zones'
 import { Button, Modal, SegmentedControl, Tooltip } from '../../ui'
 import { useFirstRunDesignHint } from './useFirstRunDesignHint'
+import { EL_META } from './zoneMeta'
 
 type ZoneKey = keyof LayoutZones
 
 const ZONE_TO_EL: Partial<Record<ZoneKey, Exclude<SelectedEl, null>>> = {
   waveform: 'wave', title: 'title', subtitle: 'subtitle', avatar: 'avatar',
-}
-
-const EL_META: Record<Exclude<SelectedEl, null>, { label: string; color: string }> = {
-  wave:     { label: 'Waveform', color: '#6C4FF6' },
-  title:    { label: 'Title',    color: '#F59E0B' },
-  subtitle: { label: 'Subtitle', color: '#22C55E' },
-  avatar:   { label: 'Avatar',   color: '#EC4FC4' },
 }
 
 const RATIO_OPTIONS: { value: CanvasSize; label: string }[] = [
@@ -136,8 +130,9 @@ export function CanvasStage() {
               <div className="pointer-events-auto flex items-center gap-2 rounded-[var(--radius-m)] bg-black/85 px-3 py-1.5 text-[12px] text-text-1 shadow-[0_8px_24px_rgba(0,0,0,0.5)]">
                 <span>Click any element on the canvas to edit it</span>
                 <button
+                  type="button"
                   onClick={firstRunHint.dismiss}
-                  className="font-semibold text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+                  className="font-semibold text-accent"
                 >
                   Got it
                 </button>
@@ -218,7 +213,7 @@ export function CanvasStage() {
                     <div style={{
                       position: 'absolute', top: 3, left: 3,
                       background: meta.color, borderRadius: 3,
-                      padding: '1px 5px', fontSize: 9, color: '#fff', fontWeight: 700,
+                      padding: '1px 5px', fontSize: 9, color: 'var(--color-text-1)', fontWeight: 700,
                       whiteSpace: 'nowrap', pointerEvents: 'none', opacity: 0.9,
                     }}>
                       {meta.label}{isTitleZone ? ' · click to edit' : ''}

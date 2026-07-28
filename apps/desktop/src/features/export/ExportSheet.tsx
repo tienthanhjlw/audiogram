@@ -107,7 +107,7 @@ export function ExportSheet() {
         <>
           <div className="flex items-center justify-between">
             <span className="text-[15px] font-semibold text-text-1">Export video</span>
-            <button type="button" onClick={close} className="text-text-3 hover:text-text-1">✕</button>
+            <button type="button" title="Close" onClick={close} className="text-text-3 hover:text-text-1">✕</button>
           </div>
 
           <div className="my-4 border-t border-border" />
@@ -170,7 +170,7 @@ export function ExportSheet() {
           <div className="my-4 border-t border-border" />
 
           <div className="flex items-center justify-between">
-            <span className="text-[12.5px] text-text-2">
+            <span className="tabular text-[12.5px] text-text-2">
               Estimated: ~{formatBytes(estBytes)} · ~{formatDuration(estSeconds)}
             </span>
             <div className="flex gap-2">
@@ -367,7 +367,7 @@ function RenderingState({ usesCaptions, onMinimize }: { usesCaptions: boolean; o
 
       <ProgressBar value={progressPct} />
       <div className="mt-1.5 flex items-center justify-between text-[12px] text-text-2">
-        <span>{Math.round(progressPct)}%{showEta ? ` · ~${formatDuration(etaSeconds!)} left` : ''}</span>
+        <span className="tabular">{Math.round(progressPct)}%{showEta ? ` · ~${formatDuration(etaSeconds!)} left` : ''}</span>
         <button type="button" onClick={() => setShowDetails(v => !v)} className="text-text-3 hover:text-text-1">
           {showDetails ? '▾ Hide details' : '▸ Show details'}
         </button>

@@ -5,6 +5,7 @@ import { Field, FieldStack, Input, Select, Slider, SwatchRow, Toggle, Tooltip } 
 import { assetUrl } from '../../core/assetUrl'
 import { actions } from '../../app/actions'
 import { useCoverImage } from './useCoverImage'
+import { EL_META } from './zoneMeta'
 
 // Looked up lazily inside each component (not at module scope): this file
 // is statically imported from App.tsx, which main.tsx imports before its
@@ -23,13 +24,6 @@ const ALIGN_OPTIONS = [
   { value: 'center' as const, label: '≡', title: 'Align center' },
   { value: 'right' as const, label: '≡', title: 'Align right' },
 ]
-
-const EL_META: Record<'wave' | 'title' | 'subtitle' | 'avatar', { label: string; color: string }> = {
-  wave:     { label: 'Waveform', color: '#6C4FF6' },
-  title:    { label: 'Title',    color: '#F59E0B' },
-  subtitle: { label: 'Subtitle', color: '#22C55E' },
-  avatar:   { label: 'Avatar',   color: '#EC4FC4' },
-}
 
 // features/design/DesignInspector.tsx — UI_DESIGN_SPEC.md §4.3. Content
 // switches on `ui.slice`'s selectedEl (shared with CanvasStage's zone
@@ -52,6 +46,7 @@ export function DesignInspector() {
         {selectedEl !== null && (
           <button
             type="button"
+            title="Deselect"
             onClick={() => selectEl(null)}
             className="flex h-6 w-6 items-center justify-center rounded-[var(--radius-s)] text-text-3 hover:bg-bg-elevated hover:text-text-1"
           >
@@ -173,6 +168,7 @@ function TitleSection() {
           ))}
           <button
             type="button"
+            title="Bold"
             onClick={() => set({ titleBold: !titleBold })}
             className={[
               'flex h-7 w-8 items-center justify-center rounded-[var(--radius-s)] font-bold',
@@ -183,6 +179,7 @@ function TitleSection() {
           </button>
           <button
             type="button"
+            title="Italic"
             onClick={() => set({ titleItalic: !titleItalic })}
             className={[
               'flex h-7 w-8 items-center justify-center rounded-[var(--radius-s)] italic',
