@@ -73,7 +73,9 @@ domain/         — pure TypeScript, zero React/Tauri — audio.ts, format.ts, z
 extensions/     — kernel.ts (ExtensionPoint<T> registry) + templates/waves/palettes
                   registering existing data through one mechanism (TECH_ARCHITECTURE §3.1)
 store/          — zustand, one flat store composed from slices (project/design/captions/
-                  playback/render/ui) — field names never renamed across phases
+                  playback/render/ui) — field names never renamed across phases. Wrapped in
+                  zundo's `temporal()` middleware (Phase 4 T9) for ⌘Z/⇧⌘Z undo/redo, scoped to
+                  Design mode + caption edits only via `partializeTemporal()` — see ADR-0008.
 features/       — start/ (StartScreen, DropZone, RecentGrid), studio/ (Toolbar, StudioLayout),
                   design/ (DesignPanel, CanvasStage, DesignInspector — Design mode's 3-pane split),
                   preview/ (PreviewCanvas, thumbnailer, WaveMiniPreview — shared leaf feature,
@@ -134,9 +136,9 @@ FFmpeg resolution order at runtime: `FFMPEG_PATH` env var → system `PATH` (+ H
 4. FFmpeg encodes H.264 + AAC to a temp `.mp4`, then renames to the final output.
 5. Emits both the legacy `render_progress`/`log` events and a structured `render_event` (`Stage`/`Progress`/`Log`/`Failed`/`Done`) that the frontend's `render.slice` consumes for stage/ETA/frame-count UI. `cancel_render` flips an `AtomicBool` checked once per batch.
 
-### Font Mapping (Phase 4 T1 pending)
+### Font Mapping (Phase 4 T1)
 
-**Status:** Phase 3 locks to Inter font for Rust export; canvas preview allows Arial/Georgia/Impact/Verdana selector but export ignores them (Preview ↔ Export gap F-1). Phase 4 T1 resolves via: (a) bundle 3–4 additional fonts per OFL license, or (b) simplify UI to Inter-only. Decision recorded in ADR-0007 when T1 completes.
+`DesignInspector.tsx`'s font picker (Arial/Georgia/Impact/Verdana) is backed on the Rust side by bundled Liberation fonts (OFL license) rather than the OS's installed fonts: `resolve_font_family()` (`crates/audiogram-render/src/text.rs`) maps each picker name to a bundled family (Arial/Verdana/Impact → Liberation Sans, Georgia → Liberation Serif) seeded into `new_font_system()`'s `fontdb` alongside Inter. Export renders a deterministic, distinct font per selection (previously it silently always rendered Inter — Preview ↔ Export gap F-1, closed). The canvas preview still renders via a literal CSS `font-family` + fallback stack, so it may not be byte-identical to the bundled Liberation faces on every OS — see ADR-0007 for the full decision and that residual gap.
 
 ### Adding a New Tauri Command
 
