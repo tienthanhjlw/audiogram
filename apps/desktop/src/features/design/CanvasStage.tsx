@@ -41,6 +41,10 @@ export function CanvasStage() {
   const set            = useAppStore(s => s.set)
   const selectedEl     = useAppStore(s => s.selectedEl)
   const selectEl       = useAppStore(s => s.selectEl)
+  const layersBetaEnabled = useAppStore(s => s.layersBetaEnabled)
+  const nodes             = useAppStore(s => s.nodes)
+  const selectedNodeIds   = useAppStore(s => s.selectedNodeIds)
+  const setSelectedNodeIds = useAppStore(s => s.setSelectedNodeIds)
 
   const containerRef    = useRef<HTMLDivElement>(null)
   const titleEditRef    = useRef<HTMLDivElement>(null)
@@ -223,6 +227,33 @@ export function CanvasStage() {
               )
             })}
           </div>
+
+          {/* Node overlay (P5-T7, "Try new layers (beta)") — click-select only;
+              drag/resize-on-canvas isn't in scope yet, edit via NodeInspector. */}
+          {layersBetaEnabled && (
+            <div className="absolute inset-0">
+              {[...nodes].sort((a, b) => a.z - b.z).map(node => {
+                const sel = selectedNodeIds.includes(node.id)
+                const { x, y, w, h } = node.transform
+                return (
+                  <div
+                    key={node.id}
+                    onMouseDown={e => { e.stopPropagation(); setSelectedNodeIds([node.id]) }}
+                    style={{
+                      position: 'absolute',
+                      left: `${x * 100}%`, top: `${y * 100}%`,
+                      width: `${w * 100}%`, height: `${h * 100}%`,
+                      border: sel ? '2px solid #EC4FC4' : '1px dashed rgba(236,79,196,0.4)',
+                      borderRadius: 4,
+                      boxSizing: 'border-box',
+                      cursor: 'pointer',
+                      zIndex: sel ? 15 : 8,
+                    }}
+                  />
+                )
+              })}
+            </div>
+          )}
 
           {/* Center guide lines — UI_DESIGN_SPEC.md §4.2 */}
           {guides.v && <div className="pointer-events-none absolute inset-y-0 left-1/2 z-20 w-px bg-accent/50" />}

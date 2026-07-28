@@ -1,5 +1,8 @@
 import type { StateCreator } from 'zustand'
-import { LAYOUT_TEMPLATES, type LayoutTemplate, type LayoutZones, type SceneNode, type WaveStyle } from '../types'
+import {
+  LAYOUT_TEMPLATES,
+  type LayoutTemplate, type LayoutZones, type SceneNode, type SceneNodeProps, type Transform, type WaveStyle,
+} from '../types'
 import type { AppStore } from './index'
 
 export interface DesignSlice {
@@ -25,6 +28,21 @@ export interface DesignSlice {
    * ungroup needs multi-select from day one, no later refactor. Not part of
    * undo history, same as the legacy `selectedEl` (store/ui.slice.ts). */
   selectedNodeIds: string[]
+  /** Appends a node (Layers panel's "+ Text"/"+ Image"/"+ Sticker", P5-T7)
+   * and selects it, so the Inspector immediately shows it. */
+  addNode: (node: SceneNode) => void
+  removeNode: (id: string) => void
+  /** Shallow-merges `patch` into the node's `transform`. */
+  updateNodeTransform: (id: string, patch: Partial<Transform>) => void
+  /** Shallow-merges `patch` into the node's `props` — callers pass only the
+   * changed fields; `type` is preserved from the existing props (a node's
+   * props variant never changes after creation). No-op for a node with no
+   * `props` (group nodes). */
+  updateNodeProps: (id: string, patch: Partial<SceneNodeProps>) => void
+  /** Swaps `z` with the next node up/down in z-order (Layers panel's
+   * reorder buttons — P5-T7 ships buttons before drag-reorder). */
+  moveNodeZ: (id: string, direction: 'up' | 'down') => void
+  setSelectedNodeIds: (ids: string[]) => void
   /** Applies a template's defaults (wave style/color, bg color, karaoke) and
    * resets zones — originally StepLayout.tsx's local `handleTemplateChange`
    * (P1-T7 moved it here so the Design mode template gallery could call it
@@ -48,6 +66,29 @@ export const createDesignSlice: StateCreator<AppStore, [], [], DesignSlice> = (s
   fontName: 'Arial',
   nodes: [],
   selectedNodeIds: [],
+  addNode: (node) => set(s => ({ nodes: [...s.nodes, node], selectedNodeIds: [node.id] })),
+  removeNode: (id) => set(s => ({
+    nodes: s.nodes.filter(n => n.id !== id),
+    selectedNodeIds: s.selectedNodeIds.filter(sid => sid !== id),
+  })),
+  updateNodeTransform: (id, patch) => set(s => ({
+    nodes: s.nodes.map(n => n.id === id ? { ...n, transform: { ...n.transform, ...patch } } : n),
+  })),
+  updateNodeProps: (id, patch) => set(s => ({
+    nodes: s.nodes.map(n => n.id === id && n.props ? { ...n, props: { ...n.props, ...patch } as SceneNodeProps } : n),
+  })),
+  moveNodeZ: (id, direction) => set(s => {
+    const sorted = [...s.nodes].sort((a, b) => a.z - b.z)
+    const idx = sorted.findIndex(n => n.id === id)
+    const swapIdx = direction === 'up' ? idx + 1 : idx - 1
+    if (idx < 0 || swapIdx < 0 || swapIdx >= sorted.length) return {}
+    const a = sorted[idx], b = sorted[swapIdx]
+    const [za, zb] = [a.z, b.z]
+    return {
+      nodes: s.nodes.map(n => n.id === a.id ? { ...n, z: zb } : n.id === b.id ? { ...n, z: za } : n),
+    }
+  }),
+  setSelectedNodeIds: (ids) => set({ selectedNodeIds: ids }),
   applyTemplate: (id) => {
     const tDef = LAYOUT_TEMPLATES.find(t => t.id === id)!
     set({

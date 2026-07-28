@@ -55,6 +55,8 @@ export function Toolbar() {
   // real rendering-state UI existed to read the same source.
   const progressPct = useAppStore(s => s.progressPct)
   const segmentsCount = useAppStore(s => s.segments.length)
+  const layersBetaEnabled = useAppStore(s => s.layersBetaEnabled)
+  const toggleLayersBeta = useAppStore(s => s.toggleLayersBeta)
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [recentOpen, setRecentOpen] = useState(false)
@@ -173,7 +175,18 @@ export function Toolbar() {
         />
       </div>
 
-      <div className="flex flex-1 items-center justify-end">
+      <div className="flex flex-1 items-center justify-end gap-2">
+        {mode === 'design' && (
+          <Tooltip content="Toggle the scene-graph Layers panel (in-progress — P5-T7)">
+            <Button
+              variant={layersBetaEnabled ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={toggleLayersBeta}
+            >
+              Try new layers (beta)
+            </Button>
+          </Tooltip>
+        )}
         {isRendering ? (
           <Button variant="secondary" size="md" onClick={actions.exportProject}>
             ◔ {Math.round(progressPct)}%

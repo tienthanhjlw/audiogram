@@ -63,6 +63,13 @@ export interface UiSlice {
    * dialog RecentGrid uses for a missing Recent, instead of silently
    * dropping the saved session and landing on an empty START screen. */
   pendingMissingSession: SessionFile | null
+  /** New in P5-T7 — "Try new layers (beta)" toolbar toggle. Gates the Layers
+   * panel section + node canvas overlay; the template gallery / legacy
+   * inspector stay the default entry point regardless (plan §7b — this is
+   * an additive door, not a replacement). Deleted along with the legacy
+   * render path at T18 (never ships as a permanent toggle). */
+  layersBetaEnabled: boolean
+  toggleLayersBeta: () => void
   /** Generic patch escape hatch — every component that needs to write more
    * than one field at once (or a field no dedicated action covers) goes
    * through this rather than each owning its own setter. */
@@ -83,5 +90,7 @@ export const createUiSlice: StateCreator<AppStore, [], [], UiSlice> = (set) => (
   setExportSheetMinimized: (minimized) => set({ exportSheetMinimized: minimized }),
   shortcutsHelpOpen: false,
   pendingMissingSession: null,
+  layersBetaEnabled: false,
+  toggleLayersBeta: () => set(s => ({ layersBetaEnabled: !s.layersBetaEnabled })),
   set: (patch) => set(patch),
 })

@@ -5,6 +5,8 @@ import { renderTemplateThumb } from '../preview/thumbnailer'
 import { WaveMiniPreview } from '../preview/WaveMiniPreview'
 import { Button, Popover } from '../../ui'
 import type { LayoutTemplate, WaveStyle } from '../../types'
+import { LayersPanel } from './LayersPanel'
+import { NodeInspector } from './NodeInspector'
 
 // features/design/DesignPanel.tsx — UI_DESIGN_SPEC.md §4.1: LEFT PANEL for
 // Design mode. Two galleries (template, wave style), both rendering real
@@ -19,6 +21,7 @@ export function DesignPanel() {
   const applyTemplate  = useAppStore(s => s.applyTemplate)
   const set            = useAppStore(s => s.set)
   const selectEl       = useAppStore(s => s.selectEl)
+  const layersBetaEnabled = useAppStore(s => s.layersBetaEnabled)
 
   const currentExt = templatePoint.get(`com.audiogram.template.${layoutTemplate}`)
   const isCustomized = zones !== null || (
@@ -65,6 +68,13 @@ export function DesignPanel() {
           })}
         </div>
       </GallerySection>
+
+      {layersBetaEnabled && (
+        <>
+          <LayersPanel />
+          <NodeInspector />
+        </>
+      )}
     </div>
   )
 }
