@@ -154,9 +154,11 @@ pub fn compute_title_pixels(
             // drawFullBg calls drawTitle(dc, yCenter) with no maxW override
             // → the preview's own default-mw fallback (W*0.84, canvas-
             // centered) applies here, NOT the title zone's own width
-            // (0.80) — ported exactly as the preview behaves today rather
-            // than "fixed" to match the zone, to avoid introducing a new
-            // drift (this exact mismatch is flagged for T5's parity audit).
+            // (0.80). Confirmed intentional (p4-t4, decision b): the two
+            // widths are canvas-centered and within 4% of each other, and
+            // preview/Rust already agree exactly on this fallback — using
+            // the zone width instead would be a cosmetic change to the
+            // title box, not a parity fix, so it's left as-is.
             let tz = zones.title;
             let style = TextStyle {
                 size_px,
