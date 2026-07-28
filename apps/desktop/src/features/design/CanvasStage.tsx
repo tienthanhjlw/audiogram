@@ -8,6 +8,7 @@ import { PreviewCanvas } from '../preview/PreviewCanvas'
 import { clampZoneFraction, snapToCenterPx } from '../../domain/zones'
 import { Button, Modal, SegmentedControl, Tooltip } from '../../ui'
 import { useFirstRunDesignHint } from './useFirstRunDesignHint'
+import { TimingTimeline } from './TimingTimeline'
 import { EL_META } from './zoneMeta'
 
 type ZoneKey = keyof LayoutZones
@@ -333,6 +334,8 @@ export function CanvasStage() {
           </Tooltip>
         </div>
       </div>
+
+      {layersBetaEnabled && <TimingTimeline />}
 
       {fullscreen && (
         <div
